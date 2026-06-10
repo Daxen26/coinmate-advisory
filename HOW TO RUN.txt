@@ -72,30 +72,38 @@ IF THE TOP BAR IS RED ("Offline")
   it never shows wrong/stale numbers, it just waits and retries.
 
 
-RUNNING IT FOR THE WHOLE TEAM (read this)
------------------------------------------
-The app pulls OKX data through a free public relay that allows a limited
-number of requests per office internet connection. So DON'T have everyone
-run their own helper -- instead, ONE computer hosts it for the group:
+USING IT ON A SECOND PC ON THE SAME OFFICE WI-FI (read this)
+-----------------------------------------------------------
+There are two ways. Pick ONE.
 
-  HOST computer (one person):
-    1. Double-click "Start Helper.bat".
-    2. In the black window, find the line:
+  -- EASIEST: just open the host PC's address (no install on the 2nd PC) --
+  1. On the HOST PC (the one already running it): double-click "Start
+     Helper.bat" and leave the black window open. In that window find:
            Teammates open:  http://192.168.x.x:8787/
-       (the first time, Windows asks to "Allow access" -> click Allow,
-        keep "Private networks" ticked.)
-    3. Leave that window open. Share that http://192.168.x.x:8787/ address.
+     (the first time, Windows asks to "Allow access" -> click Allow and
+      keep "Private networks" ticked.)
+  2. On the 2nd PC: open that  http://192.168.x.x:8787/  address in a
+     browser. The full app loads automatically -- no Node.js, no files,
+     no keys needed on the 2nd PC. It uses the host's live data.
 
-  EVERYONE ELSE (same office Wi-Fi):
-    - Just open that http://192.168.x.x:8787/ address in your browser
-      and press Start. You do NOT need Node.js or the files -- only the
-      host computer does.
+  -- OR: run the app on the 2nd PC itself (its own copy) --
+  1. Copy the whole "Coinmate Advisory" folder onto the 2nd PC.
+  2. Install Node.js once (https://nodejs.org/en/download -> Windows LTS).
+  3. Double-click "Start Helper.bat". It opens the app automatically -- it
+     starts by itself, there is NO Start button.
+  4. The price advisor + competitor view work right away. To ALSO show the
+     live balance / orders / ledger on this PC, copy your "okx-keys.json"
+     file into this same folder, then restart. (okx-keys.json is NOT in the
+     zip on purpose -- it holds your secret keys, so you add it yourself.)
 
 Notes:
-- Everyone must be on the SAME office network/Wi-Fi as the host.
-- If teammates can't connect, the host's Windows Firewall is likely
-  blocking it -> re-run Start Helper and click "Allow access", or allow
-  "Node.js" for Private networks in Windows Firewall.
+- Both PCs must be on the SAME office Wi-Fi/network.
+- If the 2nd PC can't reach the host's address, the host's Windows Firewall
+  is blocking it -> on the host, re-run "Start Helper.bat" and click
+  "Allow access", or allow "Node.js" for Private networks in the firewall.
+- Some office Wi-Fi has "client isolation" (devices can't see each other).
+  If so, the "open the host's address" method won't work -- use the
+  "run its own copy" method instead.
 
 
 OPTIONAL: LIVE BALANCE & CAPITAL TRACKING (host PC only)
