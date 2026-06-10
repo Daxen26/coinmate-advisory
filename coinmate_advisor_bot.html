@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coinmate Advisor Bot</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2a3342;
+    --text:#e6edf3; --muted:#8b97a7;
+    --green:#2ec16a; --green-dim:#163d28;
+    --pink:#e879b9; --pink-dim:#3a1f33;
+    --red:#f1556c; --red-dim:#3d1a22;
+    --amber:#f5a623; --amber-dim:#3a2c10;
+    --blue:#3b82f6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:14px 20px; max-width:1720px; margin:0 auto;
+  }
+  /* three-column dashboard — fills the width, fits without scrolling */
+  .layout{display:grid; grid-template-columns:1fr 1.08fr 0.96fr; gap:16px; align-items:start;}
+  .col{display:flex; flex-direction:column; gap:14px; min-width:0;}
+  .col > *{margin-bottom:0 !important;}      /* uniform spacing via flex gap */
+  @media(max-width:1180px){ .layout{grid-template-columns:1fr 1fr;} }
+  @media(max-width:760px){ .layout{grid-template-columns:1fr;} }
+  .header{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .avatar{
+    width:44px; height:44px; border-radius:50%; flex:0 0 44px;
+    background:linear-gradient(135deg,#0a84ff,#2ec16a); display:flex;
+    align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#fff;
+  }
+  .title h1{font-size:17px; margin:0; font-weight:700;}
+  .title p{font-size:12px; margin:2px 0 0; color:var(--muted);}
+  .status-dot{
+    width:9px; height:9px; border-radius:50%; background:#555; display:inline-block;
+    margin-right:6px; vertical-align:1px;
+  }
+  .status-dot.live{background:var(--green); box-shadow:0 0 8px var(--green);}
+  .status-text{font-size:12px; color:var(--muted);}
+
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; transition:border-color .2s ease;}
+
+  .price-grid{display:grid; grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr); gap:12px; align-items:stretch;}
+  /* competitor watchlist */
+  .comp-group{margin-top:4px;}
+  .comp-head{font-size:11px; color:var(--muted); margin:9px 0 5px; display:flex; align-items:center; gap:5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+  .comp-list{display:flex; flex-direction:column; gap:4px;}
+  .comp-row{display:grid; grid-template-columns:15px 1fr; gap:9px; align-items:center; padding:6px 8px; background:var(--bg); border:1px solid var(--line); border-radius:8px; font-size:12px;}
+  .comp-row.top{border-color:var(--blue); box-shadow:0 0 0 1px rgba(59,130,246,.25) inset;}
+  .c-rank{color:var(--muted); font-weight:700; text-align:center;}
+  .comp-row.top .c-rank{color:var(--blue);}
+  .c-main{min-width:0;}
+  .c-line1{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+  .c-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .c-price{font-weight:700; font-variant-numeric:tabular-nums;}
+  .c-price.sell{color:var(--red);} .c-price.buy{color:var(--green);}
+  .c-meta{font-size:11px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums;}
+  .comp-empty{color:var(--muted); font-size:12px; padding:4px 2px;}
+  /* recent orders feed */
+  .ord-list{max-height:230px; overflow-y:auto;}
+  .ord-row{display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:7px 9px; background:var(--bg); border:1px solid var(--line); border-radius:8px; margin-bottom:5px;}
+  .ord-side{font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; text-align:center; letter-spacing:.03em;}
+  .ord-side.buy{color:var(--green); background:var(--green-dim);}
+  .ord-side.sell{color:var(--red); background:var(--red-dim);}
+  .ord-amt{font-weight:700; font-size:13px; font-variant-numeric:tabular-nums;}
+  .ord-sub{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; margin-top:1px;}
+  .ord-rate{cursor:pointer; border-bottom:1px dotted var(--muted);}
+  .ord-rate:hover{color:var(--text); border-bottom-color:var(--blue);}
+  .ord-mid{min-width:0;}
+  .ord-cp{font-size:10.5px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ord-pm{color:#566;}
+  /* manual-entries log (Daily Ledger) */
+  .mlog{margin-top:11px; border-top:1px solid var(--line); padding-top:9px; display:flex; flex-direction:column; gap:5px;}
+  .mlog-head{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:2px;}
+  .mlog-row{display:grid; grid-template-columns:auto 1fr auto auto; gap:8px; align-items:center; background:var(--bg); border:1px solid var(--line); border-radius:7px; padding:5px 8px;}
+  .mlog-tag{font-size:9.5px; font-weight:700; padding:3px 8px; border-radius:5px; text-align:center; letter-spacing:.02em;}
+  .mlog-tag.buy{color:var(--green); background:var(--green-dim);}
+  .mlog-tag.sell{color:var(--red); background:var(--red-dim);}
+  .mlog-amt{font-size:12px; font-weight:600; font-variant-numeric:tabular-nums;}
+  .mlog-sub{font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .mlog-name{color:var(--text); font-weight:500;}
+  .mlog-edit{background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:2px 4px; opacity:.6; transition:.15s;}
+  .mlog-edit:hover{color:var(--blue); opacity:1;}
+  .qty .lim{color:var(--muted);}
+  .price-box{background:var(--panel2); border:1px solid var(--line); border-radius:11px; padding:14px; transition:transform .15s ease, border-color .2s ease;}
+  .price-box.mine{border-color:var(--green); box-shadow:0 0 0 1px rgba(46,193,106,.25) inset;
+    display:flex; flex-direction:column; min-height:240px; padding:18px;}
+  /* make YOUR ad's numbers the focal point */
+  .price-box.mine h3{margin-bottom:16px;}
+  .price-box.mine .pl{margin:16px 0 4px;}
+  .price-box.mine .lbl{font-size:15px;}
+  .price-box.mine .pinput{width:136px; font-size:36px; padding:2px 6px;}
+  .price-box.mine .qty{font-size:15px; margin:2px 0 12px; line-height:1.5;}
+  .price-box.mine .qty b{font-size:17px;}
+  .price-box.mine .qty .lim{font-size:13px;}
+  .mine-footer{margin-top:auto; padding-top:12px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:10px;}
+  .wallet{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+  .wallet .w-lbl{font-size:12px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:5px; text-transform:uppercase; letter-spacing:.04em;}
+  .wallet .w-val{font-size:15px; color:var(--text); font-variant-numeric:tabular-nums; text-align:right;}
+  .wallet .w-val b{font-size:17px; color:var(--green);}
+  .wallet .w-peso{display:block; font-size:11px; color:var(--muted);}
+  .phpbal{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .phpbal .pb-lbl{font-size:12px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:5px; text-transform:uppercase; letter-spacing:.04em;}
+  .phpbal .pb-val{font-size:16px; color:var(--text); display:flex; align-items:center; gap:1px;}
+  .phpbal .pb-input{
+    width:160px; background:transparent; border:1px solid transparent; border-radius:6px;
+    color:var(--text); font-size:16px; font-weight:700; text-align:right; font-variant-numeric:tabular-nums;
+    padding:2px 4px; outline:none; transition:border-color .15s ease, background .15s ease;
+  }
+  .pb-confirm{background:var(--green-dim); color:var(--green); border:1px solid var(--green); border-radius:6px; padding:2px 7px; margin-left:6px; cursor:pointer; font-size:12px; line-height:1;}
+  .pb-confirm:hover{filter:brightness(1.15);}
+  .phpbal .pb-input:hover{border-color:var(--line);}
+  .phpbal .pb-input:focus{border-color:var(--blue); background:var(--bg); box-shadow:0 0 0 2px rgba(59,130,246,.25);}
+  .phpconv{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:-2px;}
+  .phpconv .pc-lbl{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:4px;}
+  .phpconv .pc-lbl b{color:var(--text); font-weight:700; font-size:14px;}
+  .phpconv .pc-rate{font-size:11px; color:var(--muted);}
+  .copy-btn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+    border-radius:6px; padding:4px 9px; cursor:pointer; font-size:11px; font-weight:600;
+    display:inline-flex; align-items:center; gap:4px; transition:color .15s ease, border-color .15s ease;
+  }
+  .copy-btn:hover:not(:disabled){color:var(--text); border-color:var(--blue);}
+  .copy-btn:disabled{opacity:.5; cursor:default;}
+  .copy-btn.copied{color:var(--green); border-color:var(--green);}
+  .mini-btn{
+    float:right; background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+    border-radius:6px; padding:3px 8px; cursor:pointer; font-size:10px; font-weight:600; text-transform:none; letter-spacing:0;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  .mini-btn:hover{color:var(--text); border-color:var(--blue);}
+  /* per-panel minimize / restore */
+  .col-min{ min-width:22px; text-align:center; padding:3px 7px; margin-left:6px; }
+  .col-min:hover{ border-color:var(--blue); color:var(--text); }
+  .minbox.min{ padding-top:10px !important; padding-bottom:10px !important; opacity:.9; }
+  .minbox.min > *:not(h3){ display:none !important; }      /* collapse the body */
+  .minbox.min h3{ margin-bottom:0 !important; }
+  .minbox.min h3 .mini-btn:not(.col-min){ display:none; } /* hide action buttons while collapsed */
+  .minbox.min h3 .badge-diamond{ opacity:.7; }
+  .ord-del{background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:2px 4px; opacity:.5; transition:.15s;}
+  .ord-del:hover{color:var(--red); opacity:1;}
+  .ord-row.flagged{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset;}
+  #flag-note{
+    position:fixed; bottom:18px; right:18px; z-index:250; width:320px; max-width:92vw;
+    background:var(--panel); border:1px solid var(--amber); border-radius:12px; padding:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5); animation:pop .25s ease;
+  }
+  #flag-note .flag-head{font-weight:700; font-size:14px; color:var(--amber); display:flex; align-items:center; gap:7px;}
+  #flag-note .flag-body{font-size:13px; font-variant-numeric:tabular-nums; margin:9px 0 6px; display:flex; align-items:center; gap:8px;}
+  #flag-note .flag-body b{font-size:15px;}
+  #flag-note .flag-sub{font-size:11px; color:var(--muted); line-height:1.45; margin-bottom:12px;}
+  #flag-note .flag-actions{display:flex; gap:8px;}
+  #flag-note .flag-actions button{flex:1; border:none; border-radius:8px; padding:9px; font-size:12px; font-weight:700; cursor:pointer; transition:filter .15s ease;}
+  #flag-note .flag-actions button:hover{filter:brightness(1.12);}
+  .flag-del{background:var(--red-dim); color:var(--red);}
+  .flag-legit{background:var(--green-dim); color:var(--green);}
+  .flag-later{background:var(--panel2); color:var(--text); border:1px solid var(--line) !important;}
+  .key-hint{font-size:11px; color:var(--muted); text-align:center; margin-top:2px;}
+  .key-hint kbd{display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-family:inherit; font-size:10px; color:var(--text); font-weight:700;}
+  .today-card .td-row{display:flex; justify-content:space-between; align-items:baseline; padding:6px 0; font-size:13px; color:var(--muted); border-bottom:1px solid rgba(255,255,255,.04);}
+  .today-card .td-row b{color:var(--text); font-size:16px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .today-card .td-row b.buy{color:var(--green);} .today-card .td-row b.sell{color:var(--red);}
+  .today-card .td-foot{border-bottom:none; font-size:12px; padding-top:9px;}
+  .profit-card .pf-net{font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; margin-bottom:8px;}
+  .profit-card .pf-net.pos{color:var(--green);} .profit-card .pf-net.neg{color:var(--red);}
+  .profit-card .pf-row{display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); padding:4px 0; font-variant-numeric:tabular-nums; border-bottom:1px solid rgba(255,255,255,.04);}
+  .profit-card .pf-row:last-child{border-bottom:none;}
+  .profit-card .pf-row .pos{color:var(--green);} .profit-card .pf-row .neg{color:var(--red);}
+  /* manual transaction modal */
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:100;}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; width:360px; max-width:92vw; box-shadow:0 12px 44px rgba(0,0,0,.55);}
+  .modal h3{margin:0 0 16px; font-size:15px;}
+  /* guide modal */
+  .guide-modal{width:620px; max-height:86vh; display:flex; flex-direction:column;}
+  .guide-modal h3{position:relative;}
+  .g-close{position:absolute; top:-4px; right:-4px; background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:4px 8px;}
+  .g-close:hover{color:var(--text);}
+  .guide-body{overflow-y:auto; padding-right:6px; margin:-4px 0 14px;}
+  .g-sec{margin-bottom:16px;}
+  .g-sec h4{margin:0 0 7px; font-size:13px; color:var(--blue); display:flex; align-items:center; gap:7px; text-transform:uppercase; letter-spacing:.03em;}
+  .g-sec ul{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:5px;}
+  .g-sec li{font-size:12.5px; color:var(--text); line-height:1.55;}
+  .g-sec b{color:var(--text);} .g-sec code{background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:11.5px;}
+  .guide-body kbd{background:var(--bg); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:11px;}
+  .mt-field{margin-bottom:12px;}
+  .mt-field label{display:block; font-size:12px; color:var(--muted); margin-bottom:5px;}
+  .mt-field input, .mt-field select{width:100%; background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px; font-size:14px; outline:none;}
+  .mt-field input:focus, .mt-field select:focus{border-color:var(--blue); box-shadow:0 0 0 2px rgba(59,130,246,.25);}
+  .mt-total{font-size:22px; font-weight:700; text-align:right; margin:4px 0 16px; font-variant-numeric:tabular-nums; color:var(--text);}
+  .mt-note{font-size:11px; color:var(--muted); margin:0 0 14px; line-height:1.5;}
+  .import-text{width:100%; height:130px; resize:vertical; background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px; font-size:12px; font-family:monospace; outline:none; margin-bottom:10px;}
+  .import-text:focus{border-color:var(--blue); box-shadow:0 0 0 2px rgba(59,130,246,.25);}
+  .mt-fee{display:block; font-size:11px; font-weight:400; color:var(--muted); margin-top:2px;}
+  .mt-actions{display:flex; gap:10px;}
+  .mt-actions button{flex:1; border:none; border-radius:9px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; transition:filter .15s ease;}
+  .mt-actions button:hover{filter:brightness(1.08);}
+  .btn-cancel{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
+  .btn-add{background:var(--green); color:#06250f;}
+  .price-box h3{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 10px;}
+  .pl{display:flex; justify-content:space-between; align-items:baseline; margin:8px 0;}
+  .pl .lbl{font-size:13px; color:var(--muted);}
+  .pl .val{font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; transition:color .2s ease;}
+  .pl .val.sell{color:var(--red);}
+  .pl .val.buy{color:var(--green);}
+  .merchant{font-size:10px; color:var(--muted); margin-left:6px; font-weight:400;}
+  .badge-diamond{
+    display:inline-flex; align-items:center; gap:4px; vertical-align:middle;
+    font-size:10px; font-weight:700; letter-spacing:.02em; text-transform:none;
+    color:#8fe3ff; background:linear-gradient(135deg,rgba(10,132,255,.20),rgba(46,193,106,.14));
+    border:1px solid rgba(143,227,255,.45); padding:2px 8px; border-radius:999px;
+    box-shadow:0 0 8px rgba(59,130,246,.18);
+  }
+  .badge-diamond i{font-size:11px;}
+  .qty{font-size:11px; color:var(--muted); text-align:right; margin:-2px 0 8px; font-variant-numeric:tabular-nums;}
+  .qty b{color:var(--text); font-weight:600;}
+
+  .margin-strip{
+    display:flex; justify-content:space-between; align-items:center;
+    border-radius:11px; padding:13px 16px; margin-bottom:14px; font-weight:600; font-size:15px;
+    transition:background .25s ease, color .25s ease;
+  }
+  .cap-strip{
+    display:flex; justify-content:space-between; align-items:center;
+    background:linear-gradient(135deg,rgba(46,193,106,.12),rgba(10,132,255,.08));
+    border:1px solid var(--green); border-radius:12px;
+    padding:12px 16px; margin-bottom:14px;
+  }
+  .cap-strip .cap-l{display:flex; align-items:center; gap:7px; font-weight:700; font-size:14px; color:var(--green);}
+  .cap-strip .cap-r{text-align:right;}
+  .cap-strip .cap-val{display:block; font-size:24px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;}
+  .cap-strip .cap-break{display:block; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; margin-top:1px;}
+  .fx-strip{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel); border:1px solid var(--line); border-radius:11px;
+    padding:10px 16px; margin-bottom:14px; font-size:13px; color:var(--muted);
+  }
+  .fx-strip .fx-l{display:flex; align-items:center; gap:7px; font-weight:600;}
+  .fx-strip .fx-rate{font-size:18px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; margin-right:8px;}
+  .fx-strip .fx-prem{font-size:12px; font-weight:600; font-variant-numeric:tabular-nums;}
+  .fx-strip .fx-prem.pos{color:var(--green);}
+  .fx-strip .fx-prem.neg{color:var(--red);}
+  .margin-strip.good{background:var(--green-dim); color:var(--green);}
+  .margin-strip.cost{background:var(--pink-dim); color:var(--pink);}
+  .margin-strip.bad{background:var(--red-dim); color:var(--red);}
+  .margin-strip .m-val{font-size:28px; font-weight:700; font-variant-numeric:tabular-nums;}
+
+  #signal-area{min-height:120px;}
+  .no-signal{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; color:var(--muted); padding:26px 10px; font-size:13px; gap:8px;
+  }
+  .no-signal i{font-size:28px; opacity:.6;}
+
+  .signal-card{animation:pop .25s ease;}
+  @keyframes pop{from{transform:scale(.97);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .action-block{
+    background:var(--panel2); border-left:3px solid var(--line); border-radius:9px;
+    padding:11px 13px; margin-bottom:9px;
+  }
+  .action-block.sell{border-left-color:var(--red);}
+  .action-block.buy{border-left-color:var(--green);}
+  .ab-label{font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:600;}
+  .ab-instruction{font-size:24px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .ab-instruction .from{text-decoration:line-through; color:var(--muted); font-weight:400; margin-right:6px;}
+  .ab-instruction.sell .to{color:var(--red);}
+  .ab-instruction.buy .to{color:var(--green);}
+  .ab-reason{font-size:11px; color:var(--muted); margin-top:4px;}
+
+  .hold-warn{
+    background:var(--amber-dim); border:1px solid var(--amber); border-radius:10px;
+    padding:13px; color:var(--amber); animation:pop .25s ease;
+  }
+  .hold-warn .hw-title{font-weight:700; font-size:15px; display:flex; align-items:center; gap:7px;}
+  .hold-warn .hw-body{font-size:13px; margin-top:6px; color:#e9c97a; line-height:1.5;}
+  .hold-warn .ab-reason{color:#caa860;}
+
+  .hold-info{
+    background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--green);
+    border-radius:10px; padding:13px; animation:pop .25s ease;
+  }
+  .hold-info .hi-title{font-weight:700; font-size:15px; display:flex; align-items:center; gap:7px; color:var(--green);}
+  .hold-info .hi-body{font-size:13px; margin-top:6px; color:var(--text); line-height:1.6;}
+  .hold-info .hi-body b{color:var(--green);}
+  .hold-info .ab-reason{color:var(--muted); margin-top:8px;}
+
+  .confirm-btn{
+    width:100%; border:none; border-radius:10px; padding:14px; font-size:15px; font-weight:700;
+    color:#fff; background:var(--blue); cursor:pointer; margin-top:4px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:filter .15s ease, transform .1s ease, box-shadow .15s ease;
+  }
+  .confirm-btn:hover{filter:brightness(1.1); box-shadow:0 4px 14px rgba(59,130,246,.35);}
+  .confirm-btn:active{transform:scale(.99);}
+  .confirm-btn.done{background:var(--green-dim); color:var(--green); cursor:default; box-shadow:none;}
+  .confirm-btn.done:hover{filter:none;}
+
+  .controls{display:flex; gap:10px; margin-bottom:14px;}
+  .btn{flex:1; border:none; border-radius:10px; padding:14px; font-size:15px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:filter .15s ease, transform .1s ease, box-shadow .15s ease;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn:active{transform:scale(.98);}
+  #start-btn{background:var(--green); color:#06250f;}
+  #start-btn:hover{box-shadow:0 4px 14px rgba(46,193,106,.35);}
+  #stop-btn{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
+  #auto-pill{background:var(--green); color:#06250f; cursor:default;}
+  #auto-pill:hover{filter:none;}
+  #auto-pill:active{transform:none;}
+  #auto-pill.downtime{background:var(--panel2); color:var(--muted); border:1px solid var(--line);}
+  .lifecycle-actions{display:flex; gap:8px; justify-content:center; margin-top:9px;}
+  .lc-btn{background:var(--panel2); border:1px solid var(--line); color:var(--muted); border-radius:7px;
+    padding:6px 12px; cursor:pointer; font-size:11px; font-weight:600; display:inline-flex; align-items:center; gap:5px; transition:.15s;}
+  .lc-btn:hover{color:var(--text); border-color:var(--blue);}
+  #endday-btn{color:var(--red);}
+  #endday-btn:hover{border-color:var(--red);}
+
+  .rules h3{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 10px;}
+  .rule{display:flex; justify-content:space-between; align-items:center; margin:9px 0; font-size:13px;}
+  .rule label{color:var(--muted);}
+  .rule input[type=number]{
+    width:90px; background:var(--bg); border:1px solid var(--line); color:var(--text);
+    border-radius:7px; padding:8px 9px; font-size:14px; text-align:right;
+    transition:border-color .15s ease, box-shadow .15s ease; outline:none;
+  }
+  .rule input[type=number]:focus{border-color:var(--blue); box-shadow:0 0 0 2px rgba(59,130,246,.25);}
+  .switch{position:relative; width:42px; height:24px;}
+  .switch input{display:none;}
+  .slider{position:absolute; inset:0; background:var(--line); border-radius:24px; transition:.2s; cursor:pointer;}
+  .slider:before{content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s;}
+  .switch input:checked + .slider{background:var(--green);}
+  .switch input:checked + .slider:before{transform:translateX(18px);}
+
+  .log{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-top:12px;}
+  .log h3{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 8px;}
+  #log-list{font-size:12px; max-height:30vh; overflow-y:auto; font-variant-numeric:tabular-nums;}
+  .log-row{padding:3px 0; color:var(--muted); border-bottom:1px solid rgba(255,255,255,.03);}
+  .log-row.ok{color:var(--green);}
+  .log-time{color:#566; margin-right:8px;}
+
+  .demo-tag{
+    text-align:center; font-size:12px; color:var(--amber); background:var(--amber-dim);
+    border-radius:8px; padding:8px; margin-bottom:12px; transition:color .2s ease, background .2s ease;
+  }
+  .demo-tag.live{color:var(--green); background:var(--green-dim);}
+  .demo-tag.offline{color:var(--red); background:var(--red-dim);}
+
+  /* editable "your prices" inputs styled to look like the big numbers */
+  .pinput{
+    width:96px; background:transparent; border:1px solid transparent; border-radius:7px;
+    font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; text-align:right;
+    padding:1px 4px; transition:border-color .15s ease, background .15s ease; outline:none;
+  }
+  .pinput.sell{color:var(--red);}
+  .pinput.buy{color:var(--green);}
+  .pinput:hover{border-color:var(--line);}
+  .pinput:focus{border-color:var(--blue); background:var(--bg); box-shadow:0 0 0 2px rgba(59,130,246,.25);}
+  .pinput.auto{background:rgba(46,193,106,.08); border-color:transparent;}
+
+  .rule input[type=text]{
+    width:150px; background:var(--bg); border:1px solid var(--line); color:var(--text);
+    border-radius:7px; padding:8px 9px; font-size:14px; text-align:right;
+    transition:border-color .15s ease, box-shadow .15s ease; outline:none;
+  }
+  .rule input[type=text]:focus{border-color:var(--blue); box-shadow:0 0 0 2px rgba(59,130,246,.25);}
+  .rule-fight{flex-direction:column; align-items:stretch; gap:6px;}
+  .rule-fight label{display:flex; align-items:center; gap:5px;}
+  .rule-fight input[type=text]{width:100%; text-align:left;}
+
+  /* fight / price-war banner */
+  #fight-alert{border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:13px;}
+  #fight-alert.fight-war{background:var(--red-dim); border:1px solid var(--red);
+    animation:fightpulse 1.4s ease-in-out infinite;}
+  #fight-alert.fight-ok{background:var(--green-dim); border:1px solid rgba(46,193,106,.4); color:var(--green);}
+  @keyframes fightpulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.0);}50%{box-shadow:0 0 0 3px rgba(239,68,68,.18);}}
+  .fa-head{font-weight:700; color:var(--red); display:flex; align-items:center; gap:7px; margin-bottom:6px; font-size:14px;}
+  .fa-move{padding:5px 0; border-top:1px solid rgba(255,255,255,.06);}
+  .fa-move.sell b{color:var(--red);} .fa-move.buy b{color:var(--green);}
+  .fa-warn{color:var(--amber); font-size:11px; margin-left:4px;}
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="avatar">₱$</div>
+    <div class="title">
+      <h1>Coinmate Advisor</h1>
+      <p><span class="status-dot" id="status-dot"></span><span class="status-text" id="status-text">Starting…</span></p>
+    </div>
+  </div>
+
+  <div class="demo-tag" id="data-tag"><i class="ti ti-plug"></i> Connecting… make sure the helper window is open</div>
+
+  <div id="fight-alert" style="display:none;"></div>
+
+  <div class="layout">
+
+   <div class="col">
+    <div class="price-box mine">
+      <h3>Coinmate <span class="badge-diamond"><i class="ti ti-diamond"></i> Diamond</span> <span class="merchant" id="mine-src"></span></h3>
+      <div class="pl"><span class="lbl">Sell</span><input class="pinput sell" id="my-sell" type="number" step="0.01" value="61.75"></div>
+      <div class="qty" id="my-sell-qty"></div>
+      <div class="pl"><span class="lbl">Buy</span><input class="pinput buy" id="my-buy" type="number" step="0.01" value="61.65"></div>
+      <div class="qty" id="my-buy-qty"></div>
+      <div class="mine-footer">
+        <div class="wallet" id="wallet-line" style="display:none;"></div>
+        <div class="phpbal">
+          <span class="pb-lbl"><i class="ti ti-cash"></i> PHP balance · PDAX</span>
+          <span class="pb-val">₱<input id="php-bal" class="pb-input" type="text" inputmode="decimal" placeholder="0" autocomplete="off"><button class="pb-confirm" onclick="confirmPhp()" title="Confirm (Enter)"><i class="ti ti-check"></i></button></span>
+        </div>
+        <div class="phpconv">
+          <span class="pc-lbl"><i class="ti ti-arrow-right"></i> ≈ <b id="php-usdt">—</b> USDT <span class="pc-rate" id="php-conv-rate"></span></span>
+          <button id="php-copy" class="copy-btn" onclick="copyUsdt()" title="Copy USDT amount for your ad" disabled><i class="ti ti-copy"></i> Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cap-strip" id="cap-strip">
+      <span class="cap-l"><i class="ti ti-businessplan"></i> Circulating capital</span>
+      <span class="cap-r"><span class="cap-val" id="cap-val">—</span><span class="cap-break" id="cap-break"></span></span>
+    </div>
+
+    <div class="fx-strip" id="fx-strip">
+      <span class="fx-l"><i class="ti ti-arrows-exchange"></i> OKX USDT/PHP · live market</span>
+      <span class="fx-r"><span class="fx-rate" id="fx-rate">—</span><span class="fx-prem" id="fx-prem"></span></span>
+    </div>
+
+    <div class="margin-strip good" id="margin-strip">
+      <span>Your margin</span><span class="m-val" id="margin-val">₱0.10</span>
+    </div>
+
+    <div class="controls">
+      <span class="btn" id="auto-pill" style="cursor:default;"><i class="ti ti-bolt"></i> Auto-running</span>
+    </div>
+    <div class="lifecycle-actions">
+      <button class="lc-btn" id="endday-btn" onclick="closeDayEarly()" title="Finish the day now (before 1 AM) — saves the ledger & ending balance, then waits until 5 AM"><i class="ti ti-player-stop"></i> End day now</button>
+      <button class="lc-btn" onclick="openGuide()" title="How the app works, every column, the math & keyboard keys"><i class="ti ti-help-circle"></i> Guide</button>
+    </div>
+    <div class="key-hint">Runs automatically 5 AM – 1 AM · <kbd>Enter</kbd> confirms popups</div>
+   </div>
+
+   <div class="col">
+    <div class="price-box comp">
+      <h3>Top competitors <span class="merchant">bank transfer</span></h3>
+      <div class="comp-group">
+        <div class="comp-head"><i class="ti ti-arrow-down-right" style="color:var(--red);"></i> Sellers · lowest 3</div>
+        <div class="comp-list" id="comp-sell-list"><div class="comp-empty">—</div></div>
+      </div>
+      <div class="comp-group">
+        <div class="comp-head"><i class="ti ti-arrow-up-right" style="color:var(--green);"></i> Buyers · highest 3</div>
+        <div class="comp-list" id="comp-buy-list"><div class="comp-empty">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="signal-area">
+        <div class="no-signal"><i class="ti ti-radar-2"></i>Starting up — watching the market…</div>
+      </div>
+    </div>
+
+    <div class="card rules">
+      <h3>Rules</h3>
+      <div class="rule">
+        <label>Sell mode — <b id="mode-name">Hold for margin</b></label>
+        <label class="switch"><input type="checkbox" id="r-hold" checked onchange="onModeChange()"><span class="slider"></span></label>
+      </div>
+      <div class="rule">
+        <label>Undercut / beat by (₱)</label>
+        <input type="number" id="r-undercut" value="0.01" step="0.01" min="0">
+      </div>
+      <div class="rule">
+        <label>Margin floor — don't chase below (₱)</label>
+        <input type="number" id="r-floor" value="0.05" step="0.01" min="0">
+      </div>
+      <div class="rule">
+        <label>Min competitor USDT</label>
+        <input type="number" id="r-minusdt" value="1500" step="100" min="0">
+      </div>
+      <div class="rule">
+        <label>Only competitors matching my order limits</label>
+        <label class="switch"><input type="checkbox" id="r-overlap" onchange="if(timer)tick()"><span class="slider"></span></label>
+      </div>
+      <div class="rule">
+        <label>Alert sound</label>
+        <label class="switch"><input type="checkbox" id="r-sound" checked><span class="slider"></span></label>
+      </div>
+      <div class="rule rule-fight">
+        <label><i class="ti ti-swords"></i> Fight on SELL — alert if this rival undercuts my sell</label>
+        <input type="text" id="r-fight-sell" placeholder="rival's OKX nickname" autocomplete="off" oninput="saveFight()">
+      </div>
+      <div class="rule rule-fight">
+        <label><i class="ti ti-swords"></i> Fight on BUY — alert if this rival outbids my buy</label>
+        <input type="text" id="r-fight-buy" placeholder="rival's OKX nickname" autocomplete="off" oninput="saveFight()">
+      </div>
+    </div>
+   </div>
+
+   <aside class="col">
+    <div class="card orders-card">
+      <h3>Recent orders <button class="mini-btn" onclick="scanDay()" title="Import ALL of today's completed OKX orders (5am–1am), then confirm your cash — use after the app was off or crashed">⤓ scan day</button><button class="mini-btn" onclick="openImport()" title="Paste your OKX order list to import the real rates">⤓ import</button><button class="mini-btn" onclick="baselineDay()" title="Mark all current orders as seen — track only new orders from now">⟲ start of day</button><button class="mini-btn" onclick="refreshNow()" title="Pull balance & orders right now">↻ now</button></h3>
+      <div id="orders-list" class="ord-list"><div class="comp-empty">Loading your orders…</div></div>
+    </div>
+
+    <div class="card today-card">
+      <h3>Daily Ledger <button class="mini-btn" onclick="exportLedger()" title="Save today's orders to the Ledger folder (Excel/CSV)">⤓ export</button><button class="mini-btn" onclick="openManual()" title="Add a manual (off-P2P) Credit or Debit">+ manual</button> <span class="merchant">since start of day</span></h3>
+      <div id="today-body"><div class="comp-empty">Loading…</div></div>
+    </div>
+
+    <div class="card profit-card">
+      <h3>Profit <button class="mini-btn" onclick="openManual()" title="Add or edit a manual (off-P2P) Credit/Debit">+ manual</button><button class="mini-btn" onclick="baselineDay()" title="Reset the day — clears recent orders, daily ledger & profit from now">⟲ start of day</button> <span class="merchant">today · net of InstaPay</span></h3>
+      <div id="profit-body"><div class="comp-empty">No sells yet today.</div></div>
+    </div>
+
+    <div class="log">
+      <h3>Activity log</h3>
+      <div id="log-list"></div>
+    </div>
+   </aside>
+
+  </div>
+
+<div id="flag-note" style="display:none;">
+  <div class="flag-head"><i class="ti ti-alert-triangle-filled"></i> Verify this order <span id="flag-count" class="merchant"></span></div>
+  <div class="flag-body" id="flag-body"></div>
+  <div class="flag-sub">The app didn't see this open on your ad. Confirm it's a real order, or remove it from the math.</div>
+  <div class="flag-actions">
+    <button class="flag-del" onclick="flagDelete()">Delete</button>
+    <button class="flag-legit" onclick="flagLegit()">Legit</button>
+    <button class="flag-later" onclick="flagSnooze()">Later</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reset-modal" style="display:none;">
+  <div class="modal">
+    <h3 id="reset-title">Start of day <span class="merchant" id="reset-title-sub">enter your exact PDAX cash</span></h3>
+    <p class="mt-note" id="reset-note">This resets <b>Recent orders</b>, <b>Today</b>, and <b>Profit</b>. Enter the exact ₱ cash you have in PDAX right now so the day starts accurate. You can't continue until you enter it.</p>
+    <div class="mt-field">
+      <label>PDAX cash (₱) <span id="reset-hint" class="pc-rate"></span></label>
+      <input id="reset-php" type="text" inputmode="decimal" placeholder="0" autocomplete="off" oninput="formatPhpLive(this)">
+    </div>
+    <div class="mt-total" id="reset-status"></div>
+    <div class="key-hint"><kbd>Enter</kbd> to confirm</div>
+    <div class="mt-actions">
+      <button class="btn-add" style="flex:1" id="reset-confirm-btn" onclick="confirmReset()">Set &amp; start the day</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="import-modal" style="display:none;" onclick="if(event.target===this)closeImport()">
+  <div class="modal">
+    <h3>Import OKX rates <span class="merchant">paste your order list</span></h3>
+    <p class="mt-note">On your OKX P2P <b>Orders</b> page, select your completed orders and copy (Ctrl+C), then paste below. The app reads each order's real rate and corrects your average &amp; profit — all at once.</p>
+    <textarea id="import-text" class="import-text" placeholder="Paste your OKX order list here…"></textarea>
+    <div class="mt-total" id="import-status"></div>
+    <div class="mt-actions">
+      <button class="btn-cancel" onclick="closeImport()">Close</button>
+      <button class="btn-add" onclick="applyImport()">Import rates</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="manual-modal" style="display:none;" onclick="if(event.target===this)closeManual()">
+  <div class="modal">
+    <h3>Manual transaction <span class="merchant">off-P2P / direct</span></h3>
+    <div class="mt-field">
+      <label>Type</label>
+      <select id="mt-side" onchange="renderMtTotal()">
+        <option value="sell">Debit — client pays you, you send USDT (PHP in, no fee)</option>
+        <option value="buy">Credit — you bought USDT (e.g. other exchange) via InstaPay (PHP out + fee)</option>
+      </select>
+    </div>
+    <div class="mt-field">
+      <label>USDT amount</label>
+      <input id="mt-usdt" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal" oninput="renderMtTotal()">
+    </div>
+    <div class="mt-field">
+      <label>Price (₱ per USDT)</label>
+      <input id="mt-price" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal" oninput="renderMtTotal()">
+    </div>
+    <div class="mt-field">
+      <label>Name / note <span class="merchant">optional</span></label>
+      <input id="mt-name" type="text" placeholder="e.g. client name, GCash top-up, bank ref" autocomplete="off" maxlength="80">
+    </div>
+    <div class="mt-total" id="mt-total">= ₱0</div>
+    <div class="key-hint"><kbd>Enter</kbd> to confirm · <kbd>Esc</kbd> not bound</div>
+    <div class="mt-actions">
+      <button class="btn-cancel" onclick="closeManual()">Cancel</button>
+      <button class="btn-add" onclick="addManual()">Add to ledger</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="guide-modal" style="display:none;" onclick="if(event.target===this)closeGuide()">
+  <div class="modal guide-modal">
+    <h3>Coinmate Advisor — Guide <span class="merchant">how it works · the math · the columns · keys</span>
+      <button class="g-close" onclick="closeGuide()" title="Close">✕</button></h3>
+    <div class="guide-body">
+
+      <div class="g-sec"><h4><i class="ti ti-bolt"></i> How it runs (automatic)</h4>
+        <ul>
+          <li>Reads your <b>live OKX P2P</b> data — there is <b>no Start button</b>.</li>
+          <li>Runs every trading day <b>5:00 AM → 1:00 AM</b>.</li>
+          <li>At <b>1:00 AM</b> it finalizes the day: saves it to the <b>Ledger</b> folder (orders, profit & your ending PHP balance) and goes quiet.</li>
+          <li><b>1:00–5:00 AM</b> is downtime. At <b>5:00 AM</b> it starts the new day itself and <b>carries yesterday’s ending PHP balance</b> as the new starting balance (nothing trades overnight).</li>
+          <li><b>End day now</b> finishes early and does the same 1 AM finalize immediately.</li>
+          <li>Keep the helper window and this browser tab open for it to run 24/7.</li>
+        </ul>
+      </div>
+
+      <div class="g-sec"><h4><i class="ti ti-user"></i> Your ad (Coinmate panel)</h4>
+        <ul>
+          <li><b>Sell / Buy</b> — your ad prices. Auto-detected from OKX when found, or type them in.</li>
+          <li><b>Wallet</b> — your live USDT balance and its <b>weighted-average buy cost</b>.</li>
+          <li><b>PHP balance · PDAX</b> — your real cash. Type it (auto-commas) and press <kbd>Enter</kbd> or ✓ to confirm. It carries overnight.</li>
+          <li><b>≈ USDT</b> — converts your PHP cash to USDT at the live market; <b>Copy</b> grabs the number for your ad.</li>
+        </ul>
+      </div>
+
+      <div class="g-sec"><h4><i class="ti ti-users"></i> Top competitors &amp; the advisor</h4>
+        <ul>
+          <li><b>Top competitors</b> — best 3 sellers (lowest) and buyers (highest) on Bank Transfer that meet your “Min competitor USDT” rule.</li>
+          <li><b>Advisor (middle)</b> — tells you to <b>raise / undercut / hold</b>. <b>Sell mode</b>: “Hold for margin” (only margin-improving moves) vs “Undercut to sell fast”. It never goes below your <b>Margin floor</b>.</li>
+          <li><b>Fight merchant (Rules)</b> — enter a rival nick for SELL and/or BUY. When that rival sits on top of you, a red <b>Price war</b> banner + sound tells you the exact move to win.</li>
+        </ul>
+      </div>
+
+      <div class="g-sec"><h4><i class="ti ti-receipt"></i> Recent orders · Daily Ledger · Profit</h4>
+        <ul>
+          <li><b>Recent orders</b> — every order today with its <b>exact rate, peso total, counterparty &amp; payment method</b>, straight from OKX. <b>Click a rate</b> to correct it manually (enter <b>0</b> to revert to OKX). <b>✕</b> removes an order from all the math.</li>
+          <li><b>Daily Ledger</b> — USDT bought, sold, net position, order count and estimated fees. Add off-P2P entries with <b>+ manual</b> (<b>Credit</b> = you bought USDT / paid out; <b>Debit</b> = a client paid you). Each manual entry is listed below with <b>✎ edit</b> and <b>✕ delete</b> so you can fix a mistake and redo it.</li>
+          <li><b>Profit</b> — your <b>net profit for the day</b> (see the math below). Updates live.</li>
+          <li><b>Circulating capital</b> — PHP cash + the peso value of your USDT.</li>
+        </ul>
+      </div>
+
+      <div class="g-sec"><h4><i class="ti ti-calculator"></i> The math</h4>
+        <ul>
+          <li><b>Rate &amp; peso</b> = the exact <code>unitPrice</code> and <code>fiatAmount</code> from each OKX order. No estimates.</li>
+          <li><b>Buy avg / Sell avg</b> = total pesos ÷ total USDT (weighted), for today only.</li>
+          <li><b>InstaPay fee</b> = ₱15 for every ₱50,000 bracket, on <b>buys only</b>.</li>
+          <li><b>Profit (today)</b> = <code>sold USDT × (Sell avg − Buy avg)</code> − <b>all of today’s InstaPay fees</b>. Already net of fees.</li>
+          <li><b>Wallet avg</b> = live weighted-average price of the USDT you bought.</li>
+          <li><b>Cash</b> moves with each new order during the day; it’s your confirmed PDAX cash as the source of truth.</li>
+        </ul>
+      </div>
+
+      <div class="g-sec"><h4><i class="ti ti-click"></i> Buttons</h4>
+        <ul>
+          <li><b>⤓ scan day</b> — import ALL of today’s completed OKX orders (use after a crash/outage), then confirm your cash.</li>
+          <li><b>⤓ import</b> — paste an OKX order list to override rates in bulk.</li>
+          <li><b>⟲ start of day</b> — manual reset: clears recent/today/profit and asks for your exact cash.</li>
+          <li><b>↻ now</b> — pull balance &amp; orders immediately.</li>
+          <li><b>⤓ export</b> — save today into the Ledger folder right now.</li>
+          <li><b>+ manual</b> — log an off-P2P entry: <b>Credit</b> (you bought USDT / paid out) or <b>Debit</b> (a client paid you). On Daily Ledger &amp; Profit.</li>
+          <li><b>End day now</b> — finish the day early. <b>−</b> on any panel collapses it; <b>+</b> reopens.</li>
+        </ul>
+      </div>
+
+      <div class="g-sec"><h4><i class="ti ti-file-spreadsheet"></i> Your ledger (Ledger folder)</h4>
+        <ul>
+          <li><b>Coinmate YYYY-MM-DD.xlsx</b> — one Excel file per day: every transaction + the day summary + the <b>ending PHP balance</b>.</li>
+          <li><b>Coinmate Daily Summary.csv</b> — one row per day (orders, bought/sold, averages, profit, fees, ending balance) — your whole history at a glance.</li>
+        </ul>
+      </div>
+
+      <div class="g-sec"><h4><i class="ti ti-keyboard"></i> Keyboard</h4>
+        <ul>
+          <li><kbd>Enter</kbd> — confirm the open popup (cash, manual entry, start-of-day).</li>
+          <li><b>Click a rate</b> in Recent orders to edit it. That’s the only click-to-edit.</li>
+        </ul>
+      </div>
+
+    </div>
+    <div class="mt-actions"><button class="btn-add" style="flex:1" onclick="closeGuide()">Got it</button></div>
+  </div>
+</div>
+
+<script>
+  function $(id){return document.getElementById(id);}
+  function fP2(n){return '₱'+Number(n).toFixed(2);}
+  function fQty(n){return Number(n).toLocaleString(undefined,{maximumFractionDigits:2})+' USDT';}
+  function fPeso0(n){return '₱'+Math.round(Number(n)).toLocaleString();}
+  function fK(n){n=Number(n); if(isNaN(n))return '—'; return n>=1000?(n/1000).toFixed(n>=10000?0:1)+'k':String(Math.round(n));}
+  // per-order limit range, in PHP: "₱3,000 – 8,486"
+  function fLimit(min,max){min=Number(min); max=Number(max); if(!min && !max) return ''; const r=n=>Math.round(n).toLocaleString(); return '₱'+r(min)+' – '+r(max);}
+  // render the available USDT (and its peso value) for one of your ads
+  function showQty(elId, ad, hasNick){
+    const el=$(elId); if(!el) return;
+    if(ad){
+      let h='<b>'+fQty(ad.available)+'</b> · '+fPeso0(ad.available*ad.price)+' available';
+      const lim=fLimit(ad.min,ad.max);
+      if(lim) h+='<br><span class="lim">Order limit '+lim+'</span>';
+      el.innerHTML=h;
+    }
+    else { el.textContent = hasNick ? 'ad not found in feed' : ''; }
+  }
+  // escape feed-supplied strings (merchant nicknames) before putting them in innerHTML
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  // ---- state ----
+  // when the page is served by the helper (http://127.0.0.1:8787/) use a same-origin
+  // path; if opened as a plain file, fall back to the absolute helper address
+  const HELPER=(location.protocol==='http:'||location.protocol==='https:')?'/p2p':'http://127.0.0.1:8787/p2p';
+  const MY_NICK='coinmate';  // fixed OKX merchant nickname (lowercase, used to find your ad)
+  const ACCOUNT=HELPER.replace('/p2p','/account');  // authenticated balance endpoint on the helper
+  const ORDERS =HELPER.replace('/p2p','/orders');   // P2P order fills (funding bills) endpoint
+  const MOVEMENTS=HELPER.replace('/p2p','/movements'); // deposits/withdrawals (visibility only)
+  const EXPORT=HELPER.replace('/p2p','/export');       // write the day's ledger to the Ledger folder
+  const SCAN=HELPER.replace('/p2p','/scan');           // import the whole trading day's orders from OKX
+  const LEDGERDAY=HELPER.replace('/p2p','/ledger-day');     // append a finished day to the persistent ledger
+  const LEDGERBAL=HELPER.replace('/p2p','/ledger-balance'); // read the previous day's ending PHP balance
+  let mySell=61.75, myBuy=61.65;
+  let usdPhp=null;   // official USD/PHP forex rate (from helper) — used for the "vs USD" premium
+  let okxMid=null;   // live OKX USDT/PHP P2P market mid (from the bank-transfer book)
+  let compSell=null, compBuy=null;
+  let compSellMerchant='', compBuyMerchant='';
+  let timer=null, audioCtx=null, busy=false;
+  let walletUSDT=null, acctTimer=null;   // real OKX funding-wallet USDT (via API)
+  let ordTimer=null, seenBills=null;     // P2P order tracking (null seenBills = not yet baselined)
+  let scanInFlight=false;                // true while a day-scan is establishing the baseline
+  let dayActive=false;                   // true 5am–1am (operating); false during 1–5am downtime
+  let trackFrom=Date.now();              // only orders completing AFTER this adjust the running cash
+                                         // (set to load time, then to 5am at each new trading day)
+  let seenMoves=null;                    // deposit/withdrawal tracking (null = not yet baselined)
+  let lastOrders=[];                     // most recent completed order fills (for the feed)
+  let manualTx=[];                       // off-P2P direct Credits/Debits you log manually
+  let editingManualTs=null;              // ts of the manual entry currently being edited (null = adding new)
+  let rateByBill={};                     // MANUAL rate override (₱) per order billId — only set when you edit
+  let editedBills=new Set();             // orders whose rate you hand-corrected (override wins over OKX)
+  let prevAvail={sell:null, buy:null};   // last seen ad available — to detect order-opens (quantity drops)
+  let capturedRates=[];                  // {side,usdt,rate,ts,used} captured the moment an order opened
+  let deletedBills=new Set();            // orders you manually removed from the math
+  let phpDeltaByBill={};                 // exact PHP change each order applied (to reverse on delete)
+  let flaggedBills=new Set();            // completed orders the app didn't see open — need your review
+  let legitBills=new Set();              // orders you confirmed legit (never re-flag)
+  let flagSnoozeUntil=0, currentFlagBill=null, flagSnoozeTimer=null;
+  let metaByBill={};                     // {billId:{orderId,name}} from paste-import (for the ledger)
+  const INSTAPAY_BRACKET=50000, INSTAPAY_FEE=15;  // ₱15 per 50,000 PHP transfer (buys only)
+
+  // ---- audio ----
+  function ensureAudio(){
+    if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+    if(audioCtx && audioCtx.state==='suspended'){ try{audioCtx.resume();}catch(e){} }
+  }
+  function playSeq(freqs){
+    if(!$('r-sound').checked) return;
+    ensureAudio(); if(!audioCtx) return;
+    let t=audioCtx.currentTime;
+    freqs.forEach((f,i)=>{
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.25,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.18);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t); o.stop(t+0.2); t+=0.16;
+    });
+  }
+  // sell: low -> high  | buy: high -> low | both: three-note rising
+  function soundSell(){playSeq([523,784]);}
+  function soundBuy(){playSeq([784,523]);}
+  function soundBoth(){playSeq([523,659,880]);}
+  function soundWar(){playSeq([880,587,880,587]);}   // urgent two-tone — a rival jumped on top of you
+
+  // ---- ui helpers ----
+  function setStatus(live){
+    $('status-dot').className='status-dot'+(live?' live':'');
+    $('status-text').textContent=live?'Live — watching market':'Stopped';
+  }
+  function log(msg,cls){
+    const t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const row=document.createElement('div');
+    row.className='log-row'+(cls?(' '+cls):'');
+    row.innerHTML='<span class="log-time">'+t+'</span>'+msg;
+    $('log-list').prepend(row);
+  }
+  function updateMarginStrip(s,b){
+    const m=s-b;
+    const floor=parseFloat($('r-floor').value)||0;
+    const strip=$('margin-strip');
+    let cls='good', label='Profitable';
+    if(m<floor){cls='bad'; label='Below floor';}
+    else if(m<floor+0.05){cls='cost'; label='Thin';}
+    strip.className='margin-strip '+cls;
+    strip.innerHTML='<span>Your margin · '+label+'</span><span class="m-val">'+fP2(m)+'</span>';
+  }
+  function refreshPricePanel(){
+    const se=$('my-sell'), be=$('my-buy');
+    if(document.activeElement!==se) se.value=mySell.toFixed(2);
+    if(document.activeElement!==be) be.value=myBuy.toFixed(2);
+    updateMarginStrip(mySell,myBuy);
+    renderFx();
+    showWallet();
+    renderCapital();
+  }
+  // official USD/PHP rate + how far your USDT sell sits above/below real USD
+  function renderFx(){
+    const re=$('fx-rate'), pe=$('fx-prem');
+    if(!re||!pe) return;
+    if(okxMid==null){ re.textContent='—'; pe.textContent=''; pe.className='fx-prem'; return; }
+    re.textContent='₱'+okxMid.toFixed(2);
+    if(usdPhp){
+      const prem=okxMid-usdPhp, pct=prem/usdPhp*100;
+      pe.textContent=(prem>=0?'+':'−')+'₱'+Math.abs(prem).toFixed(2)+' ('+(pct>=0?'+':'−')+Math.abs(pct).toFixed(2)+'%) vs USD '+fP2(usdPhp);
+      pe.className='fx-prem '+(prem>=0?'pos':'neg');
+    } else { pe.textContent='live P2P mid'; pe.className='fx-prem'; }
+  }
+  // real OKX funding-wallet USDT (only shows when the helper has API keys)
+  function showWallet(){
+    const el=$('wallet-line'); if(!el) return;
+    if(walletUSDT==null){ el.style.display='none'; el.innerHTML=''; return; }
+    el.style.display='';
+    const avg = liveAvg();
+    const avgStr = avg>0 ? ('avg ₱'+avg.toFixed(2)) : '';
+    const pesoStr = mySell ? ('≈ '+fPeso0(walletUSDT*mySell)+' at sell') : '';
+    const sub = (avgStr||pesoStr) ? '<span class="w-peso">'+[avgStr,pesoStr].filter(Boolean).join(' · ')+'</span>' : '';
+    el.innerHTML='<span class="w-lbl"><i class="ti ti-wallet"></i> Wallet</span>'+
+                 '<span class="w-val"><b>'+fQty(walletUSDT)+'</b>'+sub+'</span>';
+  }
+  async function fetchAccount(){
+    try{
+      const r=await fetch(ACCOUNT,{cache:'no-store'});
+      const j=await r.json();
+      // keep last known value on a transient block / missing keys (avoid flicker)
+      if(!j.ok || !j.funding || j.funding.code!=='0') return;
+      const u=(j.funding.data||[]).find(b=>b.ccy==='USDT');
+      walletUSDT = u ? parseFloat(u.bal) : 0;
+      showWallet();
+      renderCapital();
+    }catch(e){ /* transient — keep last */ }
+  }
+  // manual PDAX PHP balance — remembered in this browser between sessions
+  function initPhpBal(){
+    const el=$('php-bal'); if(!el) return;
+    try{ const saved=localStorage.getItem('coinmate.phpBalance'); if(saved!=null && saved!=='') el.value=fmtPhpField(parseFloat(saved)); }catch(e){}
+    // while typing: save the clean number, don't reformat (avoids cursor jumping)
+    el.addEventListener('input',()=>{ formatPhpLive(el); try{ localStorage.setItem('coinmate.phpBalance', String(readPhp())); }catch(e){} renderCapital(); });
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); confirmPhp(); } });
+    // when done: re-display with commas
+    el.addEventListener('blur',()=>{ const v=readPhp(); el.value=v?fmtPhpField(v):''; });
+  }
+  function fmtPhpField(n){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:2}); }
+  function readPhp(){ return parseFloat(String($('php-bal').value).replace(/[^0-9.\-]/g,''))||0; }
+  function writePhp(v){
+    const n=Math.round(v*100)/100;
+    $('php-bal').value=fmtPhpField(n);
+    try{ localStorage.setItem('coinmate.phpBalance', String(n)); }catch(e){}
+  }
+  // live comma grouping as you type, with the cursor kept in place
+  function formatPhpLive(el){
+    const old=el.value, pos=el.selectionStart||0;
+    const digitsBefore=(old.slice(0,pos).match(/\d/g)||[]).length;
+    let raw=old.replace(/[^\d.]/g,'');
+    const dot=raw.indexOf('.');
+    if(dot>=0) raw=raw.slice(0,dot+1)+raw.slice(dot+1).replace(/\./g,'');   // keep only the first dot
+    let parts=raw.split('.'), ip=(parts[0]||'').replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    const out=ip+(raw.indexOf('.')>=0?('.'+(parts[1]||'')):'');
+    el.value=out;
+    let np=0, seen=0;
+    while(np<out.length && seen<digitsBefore){ if(/\d/.test(out[np])) seen++; np++; }
+    el.setSelectionRange(np,np);
+  }
+  function confirmPhp(){
+    const el=$('php-bal'); if(!el) return;
+    const v=readPhp();
+    el.value=v?fmtPhpField(v):'';
+    try{ localStorage.setItem('coinmate.phpBalance', String(v)); }catch(e){}
+    renderCapital(); showWallet(); el.blur();
+    log('PHP balance confirmed — '+fPeso0(v),'ok');
+  }
+  // Circulating capital = your PHP cash + USDT wallet valued at your sell price
+  function renderCapital(){
+    const v=$('cap-val'), br=$('cap-break'); if(!v) return;
+    renderPhpConv();
+    const php=readPhp();
+    const usdtPeso=(walletUSDT!=null && mySell)?walletUSDT*mySell:null;
+    if(usdtPeso==null){ v.textContent=fPeso0(php); br.textContent='PHP only · USDT wallet loading…'; return; }
+    v.textContent=fPeso0(php+usdtPeso);
+    br.textContent=fPeso0(php)+' cash + '+fQty(walletUSDT)+' ('+fPeso0(usdtPeso)+')';
+  }
+  // PHP balance -> USDT at the official forex rate (sample size for editing your ad qty)
+  function renderPhpConv(){
+    const el=$('php-usdt'), re=$('php-conv-rate'), btn=$('php-copy'); if(!el) return;
+    const php=readPhp();
+    if(!okxMid || !php){ el.textContent='—'; el.dataset.raw=''; if(re)re.textContent=''; if(btn)btn.disabled=true; return; }
+    const usdt=Math.round(php/okxMid*100)/100;
+    el.textContent=usdt.toLocaleString(undefined,{maximumFractionDigits:2});
+    el.dataset.raw=String(usdt);
+    if(re) re.textContent='@ ₱'+okxMid.toFixed(2)+' OKX';
+    if(btn) btn.disabled=false;
+  }
+  function copyText(t){
+    if(navigator.clipboard && window.isSecureContext){ return navigator.clipboard.writeText(t); }
+    return new Promise((res,rej)=>{ try{
+      const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); res();
+    }catch(e){ rej(e); } });
+  }
+  function copyUsdt(){
+    const el=$('php-usdt'), btn=$('php-copy'); const raw=el&&el.dataset.raw; if(!raw) return;
+    copyText(raw).then(()=>{
+      if(btn){ btn.classList.add('copied'); const o=btn.innerHTML; btn.innerHTML='<i class="ti ti-check"></i> Copied';
+        setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML=o; },1200); }
+      log('Copied '+raw+' USDT to clipboard','ok');
+    }).catch(()=>log('Copy failed — select the number manually',''));
+  }
+  // InstaPay fee: ₱15 per 50,000 PHP bracket, charged on BUY orders only
+  function instapayFee(php){ return Math.ceil(php/INSTAPAY_BRACKET)*INSTAPAY_FEE; }
+  // ---- the rate / PHP of an order: your manual override wins, else the EXACT figure from OKX ----
+  // OKX's P2P order list gives every order its real unitPrice + fiatAmount, so there is no guessing.
+  function rateKnown(o){
+    return (editedBills.has(o.billId) && rateByBill[o.billId]!=null) || (o&&o.rate>0) || (rateByBill[o.billId]!=null);
+  }
+  function rateOf(o){
+    if(editedBills.has(o.billId) && rateByBill[o.billId]!=null) return rateByBill[o.billId];  // you corrected it
+    if(o && o.rate>0) return o.rate;                                                          // exact OKX rate
+    if(rateByBill[o.billId]!=null) return rateByBill[o.billId];                               // legacy capture
+    return o.usdt>0?myBuy:mySell;                                                             // last-resort estimate
+  }
+  function phpOf(o){
+    if(editedBills.has(o.billId) && rateByBill[o.billId]!=null) return Math.abs(o.usdt)*rateByBill[o.billId];
+    if(o && o.php>0) return o.php;                                                            // exact OKX peso total
+    return Math.abs(o.usdt)*rateOf(o);
+  }
+  // apply one newly-detected P2P order to the running PHP balance (live polling)
+  function applyOrder(o){
+    seenBills.add(o.billId);
+    if(o.ts<=trackFrom) return;              // completed before this session/day started — already in scan/baseline
+    if(deletedBills.has(o.billId)) return;   // you deleted it — keep it out of the math
+    const usdt=Math.abs(o.usdt);
+    const isBuy=o.usdt>0;                  // USDT came IN = you bought USDT (paid PHP out)
+    const price=rateOf(o);                 // exact rate from OKX (or your override)
+    const php=phpOf(o);                    // exact peso total from OKX
+    const fee=isBuy?instapayFee(php):0;
+    const delta = isBuy ? -(php+fee) : php;
+    phpDeltaByBill[o.billId]=delta; savePhpDelta();   // remember it so delete can reverse it
+    writePhp(readPhp()+delta);
+    renderCapital(); showWallet();
+    log('Order '+(isBuy?'BUY':'SELL')+' '+usdt.toFixed(2)+' USDT @ '+fP2(price)+' = '+fPeso0(php)+(fee?(' +'+fPeso0(fee)+' fee'):'')+(o.counterparty?(' · '+o.counterparty):'')+' · PHP now '+fPeso0(readPhp()),'ok');
+  }
+  function renderOrders(){
+    const el=$('orders-list'); if(!el) return;
+    const today=lastOrders.filter(o=>o.ts>=dayStart() && !deletedBills.has(o.billId));
+    if(!today.length){ el.innerHTML='<div class="comp-empty">No orders since start of day.</div>'; return; }
+    el.innerHTML=today.slice(0,60).map(o=>{
+      const isBuy=o.usdt>0, usdt=Math.abs(o.usdt);
+      const t=new Date(o.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const rate=rateOf(o), php=phpOf(o);
+      const edited=editedBills.has(o.billId) && rateByBill[o.billId]!=null;
+      const rstr=(rateKnown(o)?'@ ₱':'~₱')+Number(rate).toFixed(2)+(edited?' ✎':'');
+      const cp=o.counterparty?('<div class="ord-cp" title="'+esc(o.counterparty)+(o.payMethod?(' · '+esc(o.payMethod)):'')+'">'+esc(o.counterparty)+(o.payMethod?(' <span class="ord-pm">· '+esc(o.payMethod)+'</span>'):'')+'</div>'):'';
+      return '<div class="ord-row">'+
+        '<span class="ord-side '+(isBuy?'buy':'sell')+'">'+(isBuy?'BUY':'SELL')+'</span>'+
+        '<div class="ord-mid"><div class="ord-amt">'+fQty(usdt)+'</div>'+
+        '<div class="ord-sub"><span class="ord-rate" onclick="editRate(\''+o.billId+'\')" title="Click to correct this order&#39;s rate manually">'+rstr+'</span> · '+fPeso0(php)+' · '+t+'</div>'+
+        cp+'</div>'+
+        '<button class="ord-del" onclick="deleteOrder(\''+o.billId+'\')" title="Remove this order from all the math">✕</button>'+
+      '</div>';
+    }).join('');
+    renderToday();
+  }
+  // Daily summary from today's order fills — rate & ₱ are EXACT from OKX (or your manual override).
+  // Running profit (today) = money made on completed sells − ALL InstaPay fees on today's buys.
+  // InstaPay is auto-deducted (every buy adds a cost), so the displayed number is already net.
+  function renderProfit(){
+    const el=$('profit-body'); if(!el) return;
+    const m=dayStart();
+    let soldQty=0, sellRev=0, boughtQty=0, boughtCost=0, fees=0;
+    for(const o of lastOrders){
+      if(o.ts<m || deletedBills.has(o.billId)) continue;
+      const usdt=Math.abs(o.usdt);
+      if(o.usdt<0){ soldQty+=usdt; sellRev+=phpOf(o); }                       // exact peso received
+      else { boughtQty+=usdt; boughtCost+=phpOf(o); fees+=instapayFee(phpOf(o)); }  // exact peso paid + InstaPay
+    }
+    for(const t of manualTx){
+      if(t.ts<m) continue;
+      if(t.side==='sell'){ soldQty+=t.usdt; sellRev+=t.usdt*t.price; }
+      else { boughtQty+=t.usdt; boughtCost+=t.usdt*t.price; fees+=(t.fee||0); }
+    }
+    if(!soldQty && !boughtQty){ el.innerHTML='<div class="comp-empty">No trades yet today.</div>'; return; }
+    // cost basis for today's sells = today's average buy price (falls back to live inventory avg
+    // if you only sold prior-day inventory today). Keeps the spread consistent within the day.
+    const avgBuy=boughtQty>0?boughtCost/boughtQty:liveAvg(), avgSell=soldQty>0?sellRev/soldQty:0;
+    const gross=soldQty>0?soldQty*(avgSell-avgBuy):0;   // money made on sells (spread)
+    const net=gross-fees;                                // InstaPay auto-deducted
+    el.innerHTML=
+      '<div class="pf-net '+(net>=0?'pos':'neg')+'">'+(net>=0?'+':'−')+fPeso0(Math.abs(net))+'</div>'+
+      '<div class="pf-row"><span>'+(soldQty>0?('Sold '+fK(soldQty)+' @ ₱'+avgSell.toFixed(2)):'No sells yet — InstaPay only')+'</span><span class="'+(gross>0?'pos':'')+'">'+(soldQty>0?('+'+fPeso0(gross)):'')+'</span></div>';
+  }
+  function renderToday(){
+    renderProfit();
+    const el=$('today-body'); if(!el) return;
+    const m=dayStart();
+    const todayOrders=lastOrders.filter(o=>o.ts>=m && !deletedBills.has(o.billId));
+    const todayManual=manualTx.filter(t=>t.ts>=m);
+    if(!todayOrders.length && !todayManual.length){ el.innerHTML='<div class="comp-empty">No trades yet today.</div>'; return; }
+    let bought=0, sold=0, fees=0;
+    todayOrders.forEach(o=>{
+      const usdt=Math.abs(o.usdt);
+      if(o.usdt>0){ bought+=usdt; fees+=instapayFee(phpOf(o)); } else { sold+=usdt; }   // exact ₱ → exact fee
+    });
+    todayManual.forEach(t=>{ if(t.side==='sell') sold+=t.usdt; else { bought+=t.usdt; fees+=(t.fee||0); } });
+    const net=bought-sold;
+    const count=todayOrders.length+todayManual.length;
+    const manualNote=todayManual.length?(' · '+todayManual.length+' manual'):'';
+    // editable log of today's manual entries (Credit/Debit) — each can be edited or deleted
+    let mlog='';
+    if(todayManual.length){
+      mlog='<div class="mlog"><div class="mlog-head">Manual entries</div>'+
+        todayManual.slice().sort((a,b)=>b.ts-a.ts).map(t=>{
+          const isCredit=t.side==='buy', tm=new Date(t.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+          const tot=isCredit?(t.php+(t.fee||0)):t.php;
+          return '<div class="mlog-row">'+
+            '<span class="mlog-tag '+(isCredit?'buy':'sell')+'">'+mtLabel(t.side)+'</span>'+
+            '<div class="mlog-mid"><div class="mlog-amt">'+fQty(t.usdt)+' @ ₱'+Number(t.price).toFixed(2)+(t.name?(' · <span class="mlog-name">'+esc(t.name)+'</span>'):'')+'</div>'+
+            '<div class="mlog-sub">'+(isCredit?'−':'+')+fPeso0(tot)+' · '+tm+'</div></div>'+
+            '<button class="mlog-edit" onclick="editManual('+t.ts+')" title="Edit this entry">✎</button>'+
+            '<button class="ord-del" onclick="deleteManual('+t.ts+')" title="Delete this entry (recalculates)">✕</button>'+
+          '</div>';
+        }).join('')+'</div>';
+    }
+    el.innerHTML=
+      '<div class="td-row"><span>Bought</span><b class="buy">'+fQty(bought)+'</b></div>'+
+      '<div class="td-row"><span>Sold</span><b class="sell">'+fQty(sold)+'</b></div>'+
+      '<div class="td-row"><span>Net position</span><b>'+(net>=0?'+':'−')+fQty(Math.abs(net))+'</b></div>'+
+      '<div class="td-row td-foot"><span>'+count+' today'+manualNote+'</span><span>fees ≈ '+fPeso0(fees)+'</span></div>'+
+      mlog;
+  }
+  // ---- auto rate capture: an order-open shows up as a drop in your ad's available quantity ----
+  function loadCaptured(){ try{ const a=JSON.parse(localStorage.getItem('coinmate.capturedRates')||'[]'); capturedRates=Array.isArray(a)?a:[]; }catch(e){ capturedRates=[]; } }
+  function saveCaptured(){ try{ localStorage.setItem('coinmate.capturedRates', JSON.stringify(capturedRates.slice(-300))); }catch(e){} }
+  function detectAdDrop(side, ad){
+    if(!ad || !(ad.available>=0)){ prevAvail[side]=null; return; }
+    const prev=prevAvail[side], cur=ad.available;
+    if(prev!=null && cur < prev-0.5){
+      // quantity dropped — record the rate PROVISIONALLY (silent). It only becomes a real order
+      // once a matching funding bill completes, so editing/cancelling your own ad never logs an order.
+      const usdt=Math.round((prev-cur)*100)/100, rate=ad.price;
+      capturedRates.push({side, usdt, rate, ts:Date.now(), used:false});
+    }
+    // drop stale unconfirmed captures (manual edits / cancellations never get a bill) — keep <2h
+    const cut=Date.now()-7200000;
+    capturedRates=capturedRates.filter(c=>c.used || (c.ts||0)>cut).slice(-300);
+    saveCaptured();
+    prevAvail[side]=cur;
+  }
+  // when a real order completes, claim the provisional rate captured nearest its open (by side + amount)
+  function matchCapturedRate(side, usdt, billTs){
+    const cands=capturedRates.filter(x=>!x.used && x.side===side && Math.abs(x.usdt-usdt)<=1 && (x.ts||0)<=billTs+120000);
+    if(!cands.length) return null;
+    cands.sort((a,b)=>Math.abs((a.ts||0)-billTs)-Math.abs((b.ts||0)-billTs));   // open closest to completion
+    cands[0].used=true; saveCaptured(); return cands[0].rate;
+  }
+  // remove an order from ALL math (display, average, profit, ledger, capital) and reverse its PHP effect
+  function loadDeleted(){ try{ const a=JSON.parse(localStorage.getItem('coinmate.deletedBills')||'[]'); deletedBills=new Set(Array.isArray(a)?a:[]); }catch(e){ deletedBills=new Set(); } }
+  function saveDeleted(){ try{ localStorage.setItem('coinmate.deletedBills', JSON.stringify([...deletedBills])); }catch(e){} }
+  function loadPhpDelta(){ try{ phpDeltaByBill=JSON.parse(localStorage.getItem('coinmate.phpDelta')||'{}')||{}; }catch(e){ phpDeltaByBill={}; } }
+  function savePhpDelta(){ try{ localStorage.setItem('coinmate.phpDelta', JSON.stringify(phpDeltaByBill)); }catch(e){} }
+  function deleteOrder(billId){
+    if(deletedBills.has(billId)) return;
+    if(phpDeltaByBill[billId]!=null){ writePhp(readPhp()-phpDeltaByBill[billId]); }   // undo its PHP change
+    deletedBills.add(billId); saveDeleted();
+    renderOrders(); showWallet(); renderToday(); renderCapital();
+    log('Order removed from tracking — average, profit & cash recalculated','');
+  }
+  // ---- flagged orders (a completed order the app didn't see open — needs your review) ----
+  function loadFlags(){ try{ flaggedBills=new Set(JSON.parse(localStorage.getItem('coinmate.flaggedBills')||'[]')); legitBills=new Set(JSON.parse(localStorage.getItem('coinmate.legitBills')||'[]')); }catch(e){ flaggedBills=new Set(); legitBills=new Set(); } }
+  function saveFlags(){ try{ localStorage.setItem('coinmate.flaggedBills', JSON.stringify([...flaggedBills])); localStorage.setItem('coinmate.legitBills', JSON.stringify([...legitBills])); }catch(e){} }
+  function renderFlags(){
+    const el=$('flag-note'); if(!el) return;
+    if(Date.now()<flagSnoozeUntil){ el.style.display='none'; return; }
+    const ds=dayStart();
+    const flagged=lastOrders.filter(o=>flaggedBills.has(o.billId) && !deletedBills.has(o.billId) && o.ts>=ds);
+    if(!flagged.length){ el.style.display='none'; currentFlagBill=null; return; }
+    const o=flagged[0]; currentFlagBill=o.billId;
+    const isBuy=o.usdt>0, usdt=Math.abs(o.usdt);
+    const rate=rateByBill[o.billId]!=null?rateByBill[o.billId]:(isBuy?myBuy:mySell);
+    const t=new Date(o.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    $('flag-count').textContent = flagged.length>1 ? ('· 1 of '+flagged.length) : '';
+    $('flag-body').innerHTML='<span class="ord-side '+(isBuy?'buy':'sell')+'">'+(isBuy?'BUY':'SELL')+'</span> <b>'+fQty(usdt)+'</b> @ ₱'+Number(rate).toFixed(2)+' · '+t;
+    el.style.display='block';
+  }
+  function flagDelete(){ const id=currentFlagBill; if(!id) return; flaggedBills.delete(id); saveFlags(); deleteOrder(id); renderFlags(); }
+  function flagLegit(){ const id=currentFlagBill; if(!id) return; legitBills.add(id); flaggedBills.delete(id); saveFlags(); log('Order marked legit — kept in the math','ok'); renderFlags(); }
+  function flagSnooze(){
+    flagSnoozeUntil=Date.now()+3*60*1000;          // reappear in ~3 minutes
+    $('flag-note').style.display='none';
+    if(flagSnoozeTimer) clearTimeout(flagSnoozeTimer);
+    flagSnoozeTimer=setTimeout(renderFlags, 3*60*1000+500);
+  }
+  // Manually correct an order's rate. The override always wins over OKX's rate and persists.
+  // Enter 0 to revert to the exact OKX rate. Cash/profit/average update immediately.
+  function editRate(billId){
+    const o=lastOrders.find(x=>x.billId===billId)||null;
+    const cur=o?rateOf(o).toFixed(2):(rateByBill[billId]!=null?String(rateByBill[billId]):'');
+    const v=prompt('Actual rate for this order (₱ per USDT).\nThis overrides OKX. Enter 0 to revert to the OKX rate.', cur);
+    if(v==null) return;                                   // cancelled
+    const s=String(v).replace(/[^0-9.]/g,'');
+    if(s==='') return;
+    const r=parseFloat(s);
+    if(isNaN(r) || r<0) return;
+    const oldPhp=o?phpOf(o):null;
+    if(r===0){ editedBills.delete(billId); delete rateByBill[billId]; }      // revert to OKX
+    else { rateByBill[billId]=r; editedBills.add(billId); }
+    saveRates(); saveEdited();
+    // if this order was live-applied to the running cash, shift cash by the correction (scanned
+    // orders carry no phpDelta — their cash is set by your confirmed balance, so leave it alone)
+    if(o && oldPhp!=null && phpDeltaByBill[billId]!=null){
+      const isBuy=o.usdt>0, newPhp=phpOf(o);
+      const newDelta = isBuy ? -(newPhp+instapayFee(newPhp)) : newPhp;
+      writePhp(readPhp() + (newDelta - phpDeltaByBill[billId]));
+      phpDeltaByBill[billId]=newDelta; savePhpDelta();
+    }
+    renderOrders(); showWallet(); renderToday(); renderCapital();
+    log(r===0?'Order rate reset to the OKX rate — recalculated':('Order rate corrected to ₱'+r.toFixed(2)+' — average, profit & cash updated'),'ok');
+  }
+  // ---- import real rates from a pasted OKX order list ----
+  function parseOkxOrders(text){
+    const toks=String(text).replace(/,/g,'').split(/\s+/).filter(Boolean);
+    const rows=[]; let cur=null;
+    for(const tk of toks){
+      if(/^\d{12,}$/.test(tk)){ if(cur)rows.push(cur); cur={orderId:tk, side:null, nums:[], words:[]}; continue; }  // order id → new order
+      if(!cur) continue;
+      if(/^buy$/i.test(tk)) cur.side='buy';
+      else if(/^sell$/i.test(tk)) cur.side='sell';
+      else { const n=parseFloat(tk); if(!isNaN(n)) cur.nums.push(n); else if(!/^(php|usdt|chat)$/i.test(tk)) cur.words.push(tk); }
+    }
+    if(cur) rows.push(cur);
+    return rows.map(o=>{
+      const nums=o.nums.filter(n=>n<1e11);                 // drop the order id
+      if(!nums.length) return null;
+      const rate=nums.find(n=>n>=20&&n<=300);              // the FX-range value is the rate
+      const php=Math.max.apply(null,nums);                 // largest is the peso total
+      let usdt=nums.find(n=>n!==rate&&rate&&Math.abs(n*rate-php)<php*0.03);
+      if(!usdt&&rate) usdt=php/rate;
+      return {orderId:o.orderId, side:o.side, usdt:usdt||0, rate:rate||0, name:(o.words||[]).join(' ').trim()};
+    }).filter(o=>o&&o.side&&o.usdt>0&&o.rate>0);
+  }
+  function openImport(){ $('import-text').value=''; $('import-status').textContent=''; $('import-modal').style.display='flex'; $('import-text').focus(); }
+  function closeImport(){ $('import-modal').style.display='none'; }
+  function openGuide(){ $('guide-modal').style.display='flex'; const b=$('guide-modal').querySelector('.guide-body'); if(b) b.scrollTop=0; }
+  function closeGuide(){ $('guide-modal').style.display='none'; }
+  function applyImport(){
+    const parsed=parseOkxOrders($('import-text').value);
+    if(!parsed.length){ $('import-status').textContent='Could not read any orders — check the pasted text.'; return; }
+    // a pasted rate is a manual override — it must win over OKX's exact rate, so set editedBills too
+    // (mirrors editRate). Consume each feed order once so one paste can't fan across identical fills.
+    const used=new Set(); let matched=0;
+    for(const p of parsed){
+      const m=lastOrders.find(o=>!used.has(o.billId) && (o.usdt>0?'buy':'sell')===p.side && Math.abs(Math.abs(o.usdt)-p.usdt)<0.01);
+      if(m){ used.add(m.billId); rateByBill[m.billId]=p.rate; editedBills.add(m.billId); metaByBill[m.billId]={orderId:p.orderId, name:p.name}; matched++; }
+    }
+    saveRates(); saveEdited(); saveMeta(); renderOrders(); showWallet(); renderToday(); renderCapital();
+    $('import-status').textContent='Read '+parsed.length+' orders · overrode '+matched+' rate'+(matched===1?'':'s')+' in your feed.';
+    log('Imported '+parsed.length+' OKX rows · '+matched+' rate override'+(matched===1?'':'s')+' applied — average & profit updated','ok');
+  }
+  function loadMeta(){ try{ metaByBill=JSON.parse(localStorage.getItem('coinmate.metaByBill')||'{}')||{}; }catch(e){ metaByBill={}; } }
+  function saveMeta(){ try{ localStorage.setItem('coinmate.metaByBill', JSON.stringify(metaByBill)); }catch(e){} }
+  // the 5am that begins the trading day containing ts (before 5am → the previous day's 5am)
+  function anchor5am(ts){
+    const d=new Date(ts), a=new Date(d); a.setHours(5,0,0,0);
+    if(d.getHours()<5) a.setDate(a.getDate()-1);
+    return a.getTime();
+  }
+  // the day boundary: a manual mid-day "start of day" if set later, otherwise today's 5am anchor
+  function dayStart(){
+    const A=anchor5am(Date.now());
+    let saved=0; try{ saved=parseInt(localStorage.getItem('coinmate.dayStartTs')||'0',10)||0; }catch(e){}
+    return saved>A ? saved : A;
+  }
+  // build the day's ledger as CSV (P2P orders + manual entries)
+  function buildLedgerCsv(){
+    const start=dayStart();
+    const out=[['Date','Time','Type','USDT','Rate (PHP)','Total (PHP)','Counterparty','Order / Ref ID']];
+    const dt=ts=>new Date(ts).toLocaleDateString(), tm=ts=>new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    lastOrders.filter(o=>o.ts>=start && !deletedBills.has(o.billId)).sort((a,b)=>a.ts-b.ts).forEach(o=>{
+      const isBuy=o.usdt>0, u=Math.abs(o.usdt);
+      const rate=rateOf(o), meta=metaByBill[o.billId]||{};
+      const name=o.counterparty||meta.name||'';                 // exact counterparty from OKX
+      const pay=o.payMethod?(' ['+o.payMethod+']'):'';
+      out.push([dt(o.ts), tm(o.ts), isBuy?'Buy':'Sell', u.toFixed(2), rate.toFixed(2), phpOf(o).toFixed(2), name+pay, o.orderId||meta.orderId||o.billId]);
+    });
+    manualTx.filter(t=>t.ts>=start).sort((a,b)=>a.ts-b.ts).forEach(t=>{
+      out.push([dt(t.ts), tm(t.ts), 'Manual '+mtLabel(t.side), t.usdt.toFixed(2), t.price.toFixed(2), (t.usdt*t.price).toFixed(2), t.name||'(manual)', '']);
+    });
+    return out.map(r=>r.map(c=>{const s=String(c); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
+  }
+  // Manual "save now": snapshot today into the persistent multi-day ledger (no reset). The 1:00 AM
+  // finalize does the same automatically. Idempotent — updates today's rows/summary in place.
+  async function exportLedger(){
+    const A=anchor5am(Date.now());
+    const ok=await writeLedgerDay(A);
+    if(ok) log('Saved today to the Ledger folder — open “Coinmate Daily Summary.csv” for the day-by-day record','ok');
+  }
+  async function fetchOrders(){
+    if(!dayActive) return;                 // during downtime, never poll/apply (guards in-flight calls too)
+    try{
+      const r=await fetch(ORDERS,{cache:'no-store'});
+      const j=await r.json();
+      if(!j.ok || !Array.isArray(j.orders)) return;
+      // merge into lastOrders (keep scanned/older orders + add new), dedupe, newest-first, cap
+      const byId={};
+      lastOrders.forEach(o=>byId[o.billId]=o);
+      j.orders.forEach(o=>byId[o.billId]=o);
+      lastOrders=Object.values(byId).sort((a,b)=>b.ts-a.ts).slice(0,500);
+      renderOrders();
+      if(seenBills===null || scanInFlight){
+        // baseline (or a scan is establishing it) — track from now forward only; never apply yet.
+        // This prevents an auto-scan/poll race from applying orphan orders to unconfirmed cash.
+        if(seenBills===null) seenBills=new Set(j.orders.map(o=>o.billId));
+        return;
+      }
+      // process new orders oldest-first so the PHP running total stays in order
+      j.orders.filter(o=>!seenBills.has(o.billId)).sort((a,b)=>a.ts-b.ts).forEach(applyOrder);
+      renderFlags();
+    }catch(e){ /* transient — try again next poll */ }
+  }
+  // Scan the whole trading day (5am → 1am next day) from OKX, import every order, then ask for cash.
+  async function scanDay(promptCash){
+    if(promptCash===undefined) promptCash=true;        // manual button asks for cash; auto-scan on startup doesn't
+    const now=new Date();
+    const start=new Date(now); start.setHours(5,0,0,0);
+    if(now.getHours()<5) start.setDate(start.getDate()-1);          // before 5am → previous day's 5am
+    const from=start.getTime(), to=from+20*3600*1000;               // 5am + 20h = 1am next day
+    log('Scanning OKX '+start.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+' → 1:00 AM…','');
+    let j;
+    scanInFlight=true;                                 // hold off the live poll's apply path until we set the baseline
+    try{
+      try{ const r=await fetch(SCAN+'?from='+from+'&to='+to,{cache:'no-store'}); j=await r.json(); }
+      catch(e){ log('Scan failed: '+e.message,''); return; }
+      if(!j.ok){ log('Scan failed: '+(j.error||'')+' (is the helper running?)',''); return; }
+      const scanned=j.orders||[];
+      try{ localStorage.setItem('coinmate.dayStartTs', String(from)); }catch(e){}   // trading day starts at 5am
+      lastOrders=scanned.slice().sort((a,b)=>b.ts-a.ts);
+      seenBills=new Set(scanned.map(o=>o.billId));      // mark all imported as seen; live polling continues after
+      // Each scanned order carries its EXACT rate + peso from OKX (rateOf/phpOf read them). No estimating,
+      // no verification flags. Your manual overrides (editedBills) are preserved automatically.
+      renderOrders(); renderToday(); showWallet(); renderCapital(); renderFlags();
+      const buys=scanned.filter(o=>o.usdt>0).length, sells=scanned.filter(o=>o.usdt<0).length;
+      if(j.truncated){ log('⚠ Day import INCOMPLETE — OKX paging hit its record cap before reaching 5am. Some early orders may be missing; profit/cash may be understated.',''); }
+      if(promptCash){
+        log('Scan done — imported '+scanned.length+' orders ('+buys+' buys, '+sells+' sells). Confirm your cash.','ok');
+        openReset(true);                                // finishing touch: confirm exact cash
+      }else{
+        log('Auto-scan — recovered '+scanned.length+' of today’s orders ('+buys+' buys, '+sells+' sells)','ok');
+      }
+    } finally { scanInFlight=false; }
+  }
+
+  // ---- daily lifecycle: auto-run 5:00am → 1:00am, finalize the ledger, carry PHP balance overnight ----
+  function lsNum(k){ try{ return parseInt(localStorage.getItem(k)||'0',10)||0; }catch(e){ return 0; } }
+  // the day's order + manual rows for the ledger
+  function dayTransactions(A){
+    const end=A+20*3600*1000;
+    const dt=ts=>new Date(ts).toLocaleDateString('en-CA');        // YYYY-MM-DD
+    const tm=ts=>new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const rows=[];
+    lastOrders.filter(o=>o.ts>=A && o.ts<=end && !deletedBills.has(o.billId)).sort((a,b)=>a.ts-b.ts).forEach(o=>{
+      const isBuy=o.usdt>0, u=Math.abs(o.usdt);
+      rows.push({ts:o.ts, date:dt(o.ts), time:tm(o.ts), type:isBuy?'Buy':'Sell', usdt:u.toFixed(2), rate:rateOf(o).toFixed(2),
+        total:phpOf(o).toFixed(2), counterparty:o.counterparty||(metaByBill[o.billId]||{}).name||'', payMethod:o.payMethod||'', orderId:o.orderId||o.billId});
+    });
+    manualTx.filter(t=>t.ts>=A && t.ts<=end).sort((a,b)=>a.ts-b.ts).forEach(t=>{
+      rows.push({ts:t.ts, date:dt(t.ts), time:tm(t.ts), type:'Manual '+mtLabel(t.side), usdt:t.usdt.toFixed(2),
+        rate:t.price.toFixed(2), total:(t.usdt*t.price).toFixed(2), counterparty:t.name||'(manual)', payMethod:'', orderId:'M'+t.ts});
+    });
+    return rows;
+  }
+  // the day's Today + Profit numbers + the ENDING PHP balance, for one ledger summary row
+  function daySummary(A){
+    const end=A+20*3600*1000, dt=ts=>new Date(ts).toLocaleDateString('en-CA');
+    let soldQty=0,sellRev=0,boughtQty=0,boughtCost=0,fees=0,count=0;
+    lastOrders.forEach(o=>{ if(o.ts<A||o.ts>end||deletedBills.has(o.billId))return; count++; const u=Math.abs(o.usdt);
+      if(o.usdt<0){ soldQty+=u; sellRev+=phpOf(o); } else { boughtQty+=u; boughtCost+=phpOf(o); fees+=instapayFee(phpOf(o)); } });
+    manualTx.forEach(t=>{ if(t.ts<A||t.ts>end)return; count++;
+      if(t.side==='sell'){ soldQty+=t.usdt; sellRev+=t.usdt*t.price; } else { boughtQty+=t.usdt; boughtCost+=t.usdt*t.price; fees+=(t.fee||0); } });
+    const buyAvg=boughtQty>0?boughtCost/boughtQty:0, sellAvg=soldQty>0?sellRev/soldQty:0;
+    const gross=soldQty>0?soldQty*(sellAvg-(boughtQty>0?buyAvg:liveAvg())):0, net=gross-fees;
+    return {date:dt(A), orders:count, boughtUsdt:boughtQty.toFixed(2), soldUsdt:soldQty.toFixed(2),
+      buyAvg:buyAvg?buyAvg.toFixed(4):'', sellAvg:sellAvg?sellAvg.toFixed(4):'',
+      grossProfit:gross.toFixed(2), fees:fees.toFixed(2), netProfit:net.toFixed(2), endingPhp:Math.round(readPhp())};
+  }
+  async function writeLedgerDay(A){
+    const payload={date:new Date(A).toLocaleDateString('en-CA'), transactions:dayTransactions(A), summary:daySummary(A)};
+    try{
+      const r=await fetch(LEDGERDAY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const j=await r.json();
+      if(j&&j.ok){ log('Ledger updated → Ledger folder · '+payload.summary.orders+' orders · profit '+fPeso0(payload.summary.netProfit)+' · ending PHP '+fPeso0(payload.summary.endingPhp),'ok'); return true; }
+      log('Ledger write failed: '+((j&&j.error)||''),''); return false;
+    }catch(e){ log('Ledger write failed: '+e.message,''); return false; }
+  }
+  function setAutoPill(phase){
+    const el=$('auto-pill'); if(el){
+      if(phase==='downtime'){ el.innerHTML='<i class="ti ti-moon"></i> Downtime · resumes 5:00 AM'; el.classList.add('downtime'); }
+      else if(phase==='closed'){ el.innerHTML='<i class="ti ti-circle-check"></i> Closed for today · resumes 5:00 AM'; el.classList.add('downtime'); }
+      else { el.innerHTML='<i class="ti ti-bolt"></i> Auto-running'; el.classList.remove('downtime'); }
+    }
+    const eb=$('endday-btn'); if(eb) eb.style.display=(phase==='active')?'':'none';   // only offer "End day" while running
+  }
+  // Finish the day early (before 1 AM): do exactly what the 1 AM auto-finalize does.
+  function closeDayEarly(){
+    const A=anchor5am(Date.now());
+    if(lsNum('coinmate.finalizedDay')===A){ log('Day already closed — resumes automatically at 5:00 AM',''); return; }
+    if(!confirm('End the trading day now?\n\nThis saves today to the Ledger folder (orders, profit & your ending PHP balance) and then waits until 5:00 AM. Use this when you’ve stopped trading early.')) return;
+    endOfDay(A);
+    setAutoPill('closed');
+  }
+  async function startOfDay(A){
+    try{ localStorage.setItem('coinmate.startedDay', String(A)); localStorage.setItem('coinmate.dayStartTs', String(A)); }catch(e){}
+    dayActive=true;
+    trackFrom=A;                       // only orders completing after 5am adjust the new day's cash
+    // carry the previous day's ending PHP balance — nothing trades during the 1–5am downtime
+    try{ const r=await fetch(LEDGERBAL,{cache:'no-store'}); const j=await r.json();
+      if(j&&j.ok&&j.endingPhp!=null){ writePhp(Number(j.endingPhp)); log('New trading day (5:00 AM) — carried PHP balance '+fPeso0(Number(j.endingPhp))+' from '+(j.date||'last ledger'),'ok'); }
+    }catch(e){}
+    seenBills=null;
+    lastOrders=[];                     // RESET the day view — recent orders, today & profit start empty
+    setAutoPill('active');
+    renderOrders(); renderToday(); showWallet(); renderCapital();
+    log('New trading day reset — recent orders, today & profit cleared; only today’s orders will show','');
+    startBot();
+    scanDay(false);                    // re-populate with just this day's orders (none yet at 5 AM)
+  }
+  async function endOfDay(A){
+    dayActive=false;                   // stop the poll applying anything from here (incl. in-flight calls)
+    try{ localStorage.setItem('coinmate.finalizedDay', String(A)); }catch(e){}
+    await writeLedgerDay(A);            // persist the finished day + ending PHP balance
+    stopBot();
+    try{ localStorage.setItem('coinmate.dayStartTs', String(A+20*3600*1000)); }catch(e){}  // clear the day view
+    lastOrders=[]; seenBills=new Set();
+    setAutoPill('downtime');
+    renderOrders(); renderToday(); showWallet(); renderCapital();
+    setDataTag('','Downtime — resumes automatically at 5:00 AM');
+    $('signal-area').innerHTML='<div class="no-signal"><i class="ti ti-moon"></i>Day finalized & ledger updated. Downtime until 5:00 AM…</div>';
+    log('Auto-stop 1:00 AM — day finalized · 4-hour downtime until 5:00 AM','');
+  }
+  let lifecycleBooted=false, lifecycleTimer=null;
+  function lifecycleTick(){
+    const now=Date.now(), A=anchor5am(now), activeEnd=A+20*3600*1000, inActive=now<activeEnd;
+    const startedDay=lsNum('coinmate.startedDay'), finalizedDay=lsNum('coinmate.finalizedDay');
+    if(inActive){
+      if(finalizedDay===A){ dayActive=false; setAutoPill('closed'); if(timer) stopBot(); }  // you ended early — stay closed till 5 AM
+      else if(startedDay!==A){ startOfDay(A); }                // 5:00am: fresh day (also covers first run today)
+      else { dayActive=true; setAutoPill('active'); if(!timer) startBot(); if(!lifecycleBooted) scanDay(false); }  // resume + catch up once
+    } else {
+      if(finalizedDay!==A){ endOfDay(A); }                     // 1:00am: finalize the day once
+      else { dayActive=false; setAutoPill('downtime'); if(timer) stopBot(); }
+    }
+    lifecycleBooted=true;
+  }
+
+  // deposits/withdrawals — logged for visibility only (the live wallet already reflects them in capital)
+  async function fetchMovements(){
+    try{
+      const r=await fetch(MOVEMENTS,{cache:'no-store'});
+      const j=await r.json();
+      if(!j.ok || !Array.isArray(j.movements)) return;
+      if(seenMoves===null){ seenMoves=new Set(j.movements.map(m=>m.id)); return; }  // baseline
+      j.movements.filter(m=>!seenMoves.has(m.id)).sort((a,b)=>a.ts-b.ts).forEach(m=>{
+        seenMoves.add(m.id);
+        const dep=m.kind==='deposit';
+        log((dep?'Deposit + ':'Withdrawal − ')+fQty(m.amt)+' · USDT '+(dep?'in':'out')+' (capital reflects via wallet)','');
+      });
+    }catch(e){ /* transient */ }
+  }
+  // pull balance + orders + movements right now (on demand)
+  function refreshNow(){ log('Manual refresh — pulling balance & orders','ok'); fetchAccount(); fetchOrders(); fetchMovements(); }
+  // "Set start of day": mark all current orders as seen so only NEW orders are tracked from now
+  // the reset button now goes through a mandatory PDAX-cash popup before it resets the day
+  let resetCashOnly=false;
+  function baselineDay(){ openReset(false); }
+  function openReset(cashOnly){
+    resetCashOnly = !!cashOnly;
+    $('reset-php').value=''; $('reset-status').textContent='';
+    const cur=readPhp();
+    $('reset-hint').textContent = cur>0 ? ('· app estimate '+fPeso0(cur)) : '';
+    if(resetCashOnly){
+      // cash-only: scan already imported the day's orders; just confirm the true cash (don't reset the day)
+      $('reset-title-sub').textContent='confirm your exact cash';
+      $('reset-note').innerHTML='Scan imported today’s orders. Enter the exact ₱ cash you have in PDAX <b>right now</b> so profit & capital are spot-on. This does <b>not</b> clear anything.';
+      $('reset-confirm-btn').textContent='Confirm cash';
+    }else{
+      $('reset-title-sub').textContent='enter your exact PDAX cash';
+      $('reset-note').innerHTML='This resets <b>Recent orders</b>, <b>Today</b>, and <b>Profit</b>. Enter the exact ₱ cash you have in PDAX right now so the day starts accurate. You can’t continue until you enter it.';
+      $('reset-confirm-btn').textContent='Set & start the day';
+    }
+    $('reset-modal').style.display='flex'; $('reset-php').focus();
+  }
+  function closeReset(){ $('reset-modal').style.display='none'; }
+  function confirmReset(){
+    const raw=String($('reset-php').value).replace(/[^0-9.\-]/g,'');
+    const v=parseFloat(raw);
+    if(raw==='' || isNaN(v) || v<0){ $('reset-status').textContent='Enter your exact cash to continue'; $('reset-php').focus(); return; }
+    if(resetCashOnly){
+      // finishing touch after a scan: cash is ground truth, keep all imported orders intact
+      writePhp(v);
+      renderCapital(); showWallet();
+      log('Cash confirmed — PDAX cash set to '+fPeso0(v)+' (scan kept)','ok');
+      closeReset(); return;
+    }
+    writePhp(v);                                              // liquid cash = the exact amount you entered
+    seenBills = lastOrders.length ? new Set(lastOrders.map(o=>o.billId)) : null;  // don't re-apply old orders
+    try{ localStorage.setItem('coinmate.dayStartTs', String(Date.now())); }catch(e){}
+    renderOrders(); renderToday(); showWallet(); renderCapital();   // resets recent orders, today & profit
+    log('Start of day — PDAX cash set to '+fPeso0(v)+'; recent orders, today & profit reset','ok');
+    closeReset();
+  }
+  // ---- manual (off-P2P) transactions ----
+  function loadManual(){ try{ const a=JSON.parse(localStorage.getItem('coinmate.manualTx')||'[]'); manualTx=Array.isArray(a)?a:[]; }catch(e){ manualTx=[]; } }
+  function saveManual(){ try{ localStorage.setItem('coinmate.manualTx', JSON.stringify(manualTx.slice(-500))); }catch(e){} }
+  function renderMtTotal(){
+    const u=parseFloat($('mt-usdt').value)||0, p=parseFloat($('mt-price').value)||0;
+    const side=$('mt-side').value, php=u*p;
+    if(side==='buy'){
+      const fee=instapayFee(php);
+      $('mt-total').innerHTML='− '+fPeso0(php+fee)+' <span class="mt-fee">'+fPeso0(php)+' cost + '+fPeso0(fee)+' InstaPay</span>';
+    } else {
+      $('mt-total').innerHTML='+ '+fPeso0(php)+' <span class="mt-fee">to PHP · no fee</span>';
+    }
+  }
+  function mtLabel(side){ return side==='buy'?'Credit':'Debit'; }   // buy = Credit · sell = Debit
+  function setManualMode(editing, side){
+    const btn=document.querySelector('#manual-modal .btn-add');
+    const h=$('manual-modal').querySelector('h3');
+    if(editing){ if(btn) btn.textContent='Save changes'; if(h) h.innerHTML='Edit entry <span class="merchant">'+mtLabel(side)+'</span>'; }
+    else { if(btn) btn.textContent='Add to ledger'; if(h) h.innerHTML='Manual transaction <span class="merchant">off-P2P / direct</span>'; }
+  }
+  function openManual(){
+    editingManualTs=null; setManualMode(false);
+    $('mt-side').value='sell'; $('mt-usdt').value=''; $('mt-name').value='';
+    $('mt-price').value = okxMid ? okxMid.toFixed(2) : '';   // prefill with live market price
+    renderMtTotal();
+    $('manual-modal').style.display='flex';
+    $('mt-usdt').focus();
+  }
+  function closeManual(){ editingManualTs=null; $('manual-modal').style.display='none'; }
+  // reverse a manual entry's effect on the running PHP cash (used by edit & delete)
+  function reverseManual(t){ if(t.side==='sell'){ writePhp(readPhp()-t.php); } else { writePhp(readPhp()+(t.php+(t.fee||0))); } }
+  function applyManual(t){ if(t.side==='sell'){ writePhp(readPhp()+t.php); } else { writePhp(readPhp()-(t.php+(t.fee||0))); } }
+  function addManual(){
+    const side=$('mt-side').value;
+    const usdt=parseFloat($('mt-usdt').value)||0;
+    const price=parseFloat($('mt-price').value)||0;
+    if(usdt<=0 || price<=0){ $('mt-total').textContent='Enter a USDT amount and price'; return; }
+    let ts=Date.now(), editing=false;
+    if(editingManualTs!=null){                               // editing → remove the old entry first, keep its time slot
+      const i=manualTx.findIndex(t=>t.ts===editingManualTs);
+      if(i>=0){ reverseManual(manualTx[i]); ts=manualTx[i].ts; manualTx.splice(i,1); editing=true; }
+      editingManualTs=null;
+    }
+    const php=usdt*price;
+    const fee=(side==='buy')?instapayFee(php):0;              // InstaPay applies when YOU pay out (Credit/buy)
+    const name=($('mt-name').value||'').trim();
+    const entry={ts, side, usdt, price, php, fee, name};
+    manualTx.push(entry); saveManual();
+    applyManual(entry);
+    renderCapital(); renderToday(); showWallet();
+    log('Manual '+mtLabel(side).toUpperCase()+(editing?' edited':'')+' '+usdt.toFixed(2)+' USDT @ '+fP2(price)+' = '+fPeso0(php)+(fee?(' + '+fPeso0(fee)+' InstaPay'):'')+' · PHP now '+fPeso0(readPhp()),'ok');
+    closeManual();
+  }
+  function editManual(ts){
+    const t=manualTx.find(x=>x.ts===ts); if(!t) return;
+    editingManualTs=ts; setManualMode(true, t.side);
+    $('mt-side').value=t.side; $('mt-usdt').value=t.usdt; $('mt-price').value=t.price; $('mt-name').value=t.name||'';
+    renderMtTotal();
+    $('manual-modal').style.display='flex'; $('mt-usdt').focus();
+  }
+  function deleteManual(ts){
+    const i=manualTx.findIndex(t=>t.ts===ts); if(i<0) return;
+    const t=manualTx[i];
+    reverseManual(t);                                        // undo its effect on cash
+    manualTx.splice(i,1); saveManual();
+    renderCapital(); renderToday(); showWallet();
+    log('Manual '+mtLabel(t.side).toUpperCase()+' '+t.usdt.toFixed(2)+' USDT removed — daily ledger, profit & cash recalculated','');
+  }
+  // ---- average-cost position (USDT you hold) ----
+  // LIVE weighted-average buy price, from the recent orders feed (+ your manual buys).
+  // Uses each order's EXACT peso paid from OKX (or your manual override).
+  function liveAvg(){
+    let qty=0, cost=0;
+    for(const o of lastOrders){
+      if(deletedBills.has(o.billId)) continue;
+      if(o.usdt>0){ const c=phpOf(o); if(c>0){ qty+=o.usdt; cost+=c; } }   // exact peso paid for this buy
+    }
+    for(const t of manualTx){ if(t.side==='buy' && t.price>0){ qty+=t.usdt; cost+=t.usdt*t.price; } }
+    return qty>0 ? cost/qty : 0;
+  }
+  function loadRates(){ try{ rateByBill=JSON.parse(localStorage.getItem('coinmate.rateByBill')||'{}')||{}; }catch(e){ rateByBill={}; } }
+  function saveRates(){ try{ localStorage.setItem('coinmate.rateByBill', JSON.stringify(rateByBill)); }catch(e){} }
+  function loadEdited(){ try{ editedBills=new Set(JSON.parse(localStorage.getItem('coinmate.editedBills')||'[]')); }catch(e){ editedBills=new Set(); } }
+  function saveEdited(){ try{ localStorage.setItem('coinmate.editedBills', JSON.stringify([...editedBills])); }catch(e){} }
+  function readMyInputs(){
+    const s=parseFloat($('my-sell').value); if(!isNaN(s)) mySell=s;
+    const b=parseFloat($('my-buy').value);  if(!isNaN(b)) myBuy=b;
+  }
+  function setDataTag(state,msg){
+    const tag=$('data-tag');
+    tag.className='demo-tag'+(state==='live'?' live':state==='offline'?' offline':'');
+    const icon=state==='live'?'ti-plug-connected':state==='offline'?'ti-plug-connected-x':'ti-plug';
+    tag.innerHTML='<i class="ti '+icon+'"></i> '+msg;
+  }
+
+  // ---- live data from the local helper ----
+  async function fetchMarket(){
+    const r=await fetch(HELPER,{cache:'no-store'});
+    if(!r.ok) throw new Error('helper HTTP '+r.status);
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'no data');
+    return j;
+  }
+  // best competitor: must accept Bank Transfer, have enough volume, and not be you
+  // does competitor ad `a`'s order range overlap your ad's range `lim` {min,max} (PHP)?
+  function limitsOverlap(a,lim){
+    if(!lim) return true;               // overlap filter off / your ad unknown
+    if(!(a.max>0)) return true;         // competitor lists no upper limit → always counts
+    return a.max>=lim.min && a.min<=lim.max;
+  }
+  function pickBest(ads,minUSDT,myNick,wantMax,lim){
+    let best=null;
+    for(const a of ads){
+      const pays=(a.pay||[]).map(p=>String((p&&typeof p==='object')?(p.name||p.payMethod||p.id||''):p).toLowerCase());
+      if(!pays.some(p=>p==='bank'||p==='bank transfer')) continue;    // generic Bank Transfer only (OKX value "bank")
+      if(a.available<minUSDT) continue;                               // enough volume
+      if(myNick && a.nick && a.nick.toLowerCase()===myNick) continue; // skip your own ad
+      if(!limitsOverlap(a,lim)) continue;                             // (optional) only overlapping order sizes
+      if(!best || (wantMax?a.price>best.price:a.price<best.price)) best=a;
+    }
+    return best;
+  }
+  function findMine(ads,myNick){
+    if(!myNick) return null;
+    return ads.find(a=>a.nick && a.nick.toLowerCase()===myNick)||null;
+  }
+  // top N competitors on one side (bank transfer, enough volume, not you)
+  function topN(ads,minUSDT,myNick,wantMax,n,lim){
+    const sorted=(ads||[])
+      .filter(a=>(a.pay||[]).some(p=>{const s=String(p).toLowerCase(); return s==='bank'||s==='bank transfer';}))
+      .filter(a=>a.available>=minUSDT)
+      .filter(a=>!(myNick && a.nick && a.nick.toLowerCase()===myNick))
+      .filter(a=>!isNaN(a.price))
+      .filter(a=>limitsOverlap(a,lim))
+      .sort((x,y)=>wantMax?y.price-x.price:x.price-y.price);
+    // collapse duplicate merchants — keep each merchant's best (first) ad only
+    const seen=new Set(), out=[];
+    for(const a of sorted){ const k=(a.nick||'').toLowerCase(); if(k && seen.has(k)) continue; seen.add(k); out.push(a); if(out.length>=n) break; }
+    return out;
+  }
+  function renderComp(elId,list,side){
+    const el=$(elId); if(!el) return;
+    if(!list.length){ el.innerHTML='<div class="comp-empty">No bank-transfer competitor meets your volume rule.</div>'; return; }
+    el.innerHTML=list.map((a,i)=>
+      '<div class="comp-row'+(i===0?' top':'')+'">'+
+        '<span class="c-rank">'+(i+1)+'</span>'+
+        '<div class="c-main">'+
+          '<div class="c-line1"><span class="c-name">'+esc(a.nick||'—')+'</span><span class="c-price '+side+'">'+fP2(a.price)+'</span></div>'+
+          '<div class="c-meta">'+fK(a.available)+' avail · '+(fLimit(a.min,a.max)||'no limit')+'</div>'+
+        '</div>'+
+      '</div>'
+    ).join('');
+  }
+
+  // ---- fight mode: watch a named rival on each side; alert ONLY during an active price war ----
+  let fightActive=false, lastMarket=null;
+  function findAd(ads, nick){
+    if(!nick) return null; const f=nick.toLowerCase();
+    const pool=(ads||[]).filter(a=>a.nick && a.nick.toLowerCase()!==MY_NICK);   // never match your own ad
+    const exact=pool.find(a=>a.nick.toLowerCase()===f);
+    if(exact) return exact;
+    const pre=pool.filter(a=>a.nick.toLowerCase().startsWith(f));               // prefix only if unambiguous
+    return pre.length===1 ? pre[0] : null;     // ambiguous/substring never auto-fires a price-war alert
+  }
+  function saveFight(){
+    try{
+      localStorage.setItem('coinmate.fightSellNick', (($('r-fight-sell')||{}).value||'').trim());
+      localStorage.setItem('coinmate.fightBuyNick',  (($('r-fight-buy') ||{}).value||'').trim());
+    }catch(e){}
+    renderFight(lastMarket||{});   // update immediately — clearing a field hides the banner at once
+  }
+  function loadFight(){
+    try{
+      const old=localStorage.getItem('coinmate.fightNick');   // migrate the old single-field value
+      let s=localStorage.getItem('coinmate.fightSellNick'), b=localStorage.getItem('coinmate.fightBuyNick');
+      if(s==null && old) s=old; if(b==null && old) b=old;
+      if($('r-fight-sell')) $('r-fight-sell').value=s||'';
+      if($('r-fight-buy'))  $('r-fight-buy').value =b||'';
+    }catch(e){}
+  }
+  function renderFight(data){
+    const el=$('fight-alert'); if(!el) return;
+    data=data||{};
+    const sellNick=(($('r-fight-sell')||{}).value||'').trim();
+    const buyNick =(($('r-fight-buy') ||{}).value||'').trim();
+    if(!sellNick && !buyNick){ el.style.display='none'; fightActive=false; return; }   // option off → gone
+    const beat=parseFloat($('r-undercut').value)||0.01;
+    const floor=parseFloat($('r-floor').value)||0;
+    const threats=[];
+    if(sellNick){
+      const rival=findAd(data.sell, sellNick);                 // their SELL ad — lower price ranks on top of you
+      if(rival && rival.price<=mySell+0.00001){
+        const target=Math.round((rival.price-beat)*100)/100;
+        const m=target-myBuy, warn=m<floor?(' <span class="fa-warn">⚠ margin '+fP2(m)+' &lt; floor</span>'):'';
+        threats.push('<div class="fa-move sell">Deduct your <b>SELL</b> '+fP2(mySell)+' → <b>'+fP2(target)+'</b> to undercut '+esc(rival.nick||sellNick)+' ('+fP2(rival.price)+')'+warn+'</div>');
+      }
+    }
+    if(buyNick){
+      const rival=findAd(data.buy, buyNick);                   // their BUY ad — higher price ranks on top of you
+      if(rival && rival.price>=myBuy-0.00001){
+        const target=Math.round((rival.price+beat)*100)/100;
+        const m=mySell-target, warn=m<floor?(' <span class="fa-warn">⚠ margin '+fP2(m)+' &lt; floor</span>'):'';
+        threats.push('<div class="fa-move buy">Raise your <b>BUY</b> '+fP2(myBuy)+' → <b>'+fP2(target)+'</b> to beat '+esc(rival.nick||buyNick)+' ('+fP2(rival.price)+')'+warn+'</div>');
+      }
+    }
+    if(!threats.length){ el.style.display='none'; fightActive=false; return; }          // no war → gone
+    el.className='fight-war'; el.style.display='block';
+    el.innerHTML='<div class="fa-head"><i class="ti ti-swords"></i> Price war — a rival is on top of you</div>'+threats.join('');
+    if(!fightActive){ ensureAudio(); if($('r-sound').checked) soundWar(); log('⚔ Price war — rival on top of your ad','' ); }
+    fightActive=true;
+  }
+
+  // ---- main loop ----
+  async function tick(){
+    if(busy) return; busy=true;
+    try{
+    let data;
+    try{ data=await fetchMarket(); }
+    catch(e){
+      setDataTag('offline','Offline — is the helper running?');
+      $('signal-area').innerHTML='<div class="no-signal"><i class="ti ti-plug-connected-x" style="color:var(--red);"></i>No live data. Double-click "Start Helper", wait a moment, then it will reconnect.</div>';
+      const fa=$('fight-alert'); if(fa){ fa.style.display='none'; }   // don't prompt price moves on stale data
+      fightActive=false;
+      return;
+    }
+    lastMarket=data;   // cache for instant fight re-evaluation when you edit the rival fields
+
+    const myNick=MY_NICK;
+    const undercut=parseFloat($('r-undercut').value)||0;
+    const floor=parseFloat($('r-floor').value)||0;
+    const minUSDT=parseFloat($('r-minusdt').value)||0;
+
+    // YOUR prices: auto from feed when your nickname matches, else what you typed
+    readMyInputs();
+    const mineSell=findMine(data.sell,myNick);
+    const mineBuy =findMine(data.buy ,myNick);
+    if(mineSell) mySell=mineSell.price;
+    if(mineBuy ) myBuy =mineBuy.price;
+    $('my-sell').classList.toggle('auto',!!mineSell);
+    $('my-buy').classList.toggle('auto',!!mineBuy);
+    showQty('my-sell-qty',mineSell,!!myNick);
+    showQty('my-buy-qty' ,mineBuy ,!!myNick);
+    detectAdDrop('sell',mineSell);   // capture the rate when a client opens an order (ad qty drops)
+    detectAdDrop('buy' ,mineBuy);
+    if(myNick && (mineSell||mineBuy)) $('mine-src').textContent='· auto from OKX';
+    else if(myNick) $('mine-src').textContent='· ad not found, type prices';
+    else $('mine-src').textContent='· typed by you';
+
+    // (optional) only count competitors whose order range overlaps yours
+    const overlap=$('r-overlap').checked;
+    const limSell=(overlap && mineSell)?{min:mineSell.min,max:mineSell.max}:null;
+    const limBuy =(overlap && mineBuy )?{min:mineBuy.min ,max:mineBuy.max }:null;
+
+    // BEST competitor (bank transfer only)
+    const bestSell=pickBest(data.sell,minUSDT,myNick,false,limSell); // lowest seller
+    const bestBuy =pickBest(data.buy ,minUSDT,myNick,true ,limBuy);  // highest buyer
+    compSell=bestSell?bestSell.price:null; compSellMerchant=bestSell?bestSell.nick:'';
+    compBuy =bestBuy ?bestBuy.price :null; compBuyMerchant =bestBuy ?bestBuy.nick :'';
+
+    // live OKX USDT/PHP market mid (bid-ask mid of the bank-transfer book)
+    if(compSell!=null && compBuy!=null) okxMid=(compSell+compBuy)/2;
+    else if(compSell!=null) okxMid=compSell;
+    else if(compBuy!=null) okxMid=compBuy;
+
+    // top-3 competitor watchlists
+    renderComp('comp-sell-list',topN(data.sell,minUSDT,myNick,false,3,limSell),'sell');
+    renderComp('comp-buy-list' ,topN(data.buy ,minUSDT,myNick,true ,3,limBuy),'buy');
+
+    // fight mode: alert if your named rival is sitting on top of you
+    renderFight(data);
+
+    const upd=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    if(data.usd && data.usd.php) usdPhp=data.usd.php;
+    setDataTag('live','Live — OKX USDT/PHP · bank transfer · '+upd);
+    refreshPricePanel();
+
+    const holdMode=$('r-hold').checked;   // true = hold for margin · false = undercut to sell fast
+
+    const sellValid=compSell!=null;
+    const buyValid =compBuy !=null;
+
+    // competitive target: just under the cheapest seller / just over the highest buyer
+    const targetSell=sellValid?Math.round((compSell-undercut)*100)/100:mySell;
+    const targetBuy =buyValid ?Math.round((compBuy +undercut)*100)/100:myBuy;
+
+    // direction of each move — raising sell / lowering buy IMPROVES your margin
+    const sellRaise=sellValid && targetSell-mySell>=0.01;  // you can sell higher and still be cheapest
+    const sellDrop =sellValid && mySell-targetSell>=0.01;  // you'd be lowering into the competitor
+    const buyDrop  =buyValid  && myBuy -targetBuy >=0.01;  // you can pay less and still be top buyer
+    const buyRaise =buyValid  && targetBuy-myBuy  >=0.01;  // you'd be raising to beat the competitor
+
+    // Hold mode: only margin-improving moves. Undercut mode: match either direction.
+    const sellNeedsChange = holdMode ? sellRaise : (sellRaise||sellDrop);
+    const buyNeedsChange  = holdMode ? buyDrop  : (buyRaise ||buyDrop);
+
+    // are you deliberately sitting away from the market? (for the calm "holding" readout)
+    const aboveMktSell=sellValid && mySell-compSell>0.0049;  // priced above the cheapest seller
+    const belowMktBuy =buyValid  && compBuy-myBuy >0.0049;   // bidding below the top buyer
+
+    if(!sellNeedsChange && !buyNeedsChange){
+      if(holdMode && (aboveMktSell||belowMktBuy)){
+        let b='';
+        if(aboveMktSell) b+='<div>Sell '+fP2(mySell)+' · <b>'+fP2(mySell-compSell)+' above</b> the cheapest ('+fP2(compSell)+' · '+esc(compSellMerchant||'—')+'). Slower fills, fatter margin.</div>';
+        if(belowMktBuy)  b+='<div>Buy '+fP2(myBuy)+' · <b>'+fP2(compBuy-myBuy)+' below</b> the top buyer ('+fP2(compBuy)+' · '+esc(compBuyMerchant||'—')+').</div>';
+        $('signal-area').innerHTML=
+          '<div class="hold-info signal-card">'+
+            '<div class="hi-title"><i class="ti ti-shield-check"></i> Holding for margin</div>'+
+            '<div class="hi-body">'+b+'</div>'+
+            '<div class="ab-reason">No price war — this is your call. Flip “Sell mode” to Undercut if you want to chase the cheapest.</div>'+
+          '</div>';
+      } else {
+        $('signal-area').innerHTML='<div class="no-signal"><i class="ti ti-circle-check" style="color:var(--green);"></i>'+(holdMode?'Best price held — you’re as high as you can be while staying #1. Watching…':'Prices are good. Watching for the next move…')+'</div>';
+      }
+      updateMarginStrip(mySell,myBuy);
+      return;
+    }
+
+    // projected margin if you follow the advice
+    const projSell=sellNeedsChange?targetSell:mySell;
+    const projBuy =buyNeedsChange ?targetBuy :myBuy;
+    const projMargin=projSell-projBuy;
+    const curMargin =mySell-myBuy;
+
+    // SAFETY FLOOR — only blocks moves that WORSEN your margin past the floor (i.e. chasing down)
+    if(projMargin<floor && projMargin<curMargin){
+      $('signal-area').innerHTML=
+        '<div class="hold-warn signal-card">'+
+          '<div class="hw-title"><i class="ti ti-hand-stop"></i> Hold — don\'t chase</div>'+
+          '<div class="hw-body">Matching would drop you to '+fP2(projMargin)+' — below your floor of '+fP2(floor)+'. Don\'t chase this one.</div>'+
+          '<div class="ab-reason">Competitor sell '+(compSell!=null?fP2(compSell):'—')+' · buy '+(compBuy!=null?fP2(compBuy):'—')+'</div>'+
+        '</div>';
+      updateMarginStrip(mySell,myBuy);
+      log('Hold — competitor move would break floor','');
+      return;
+    }
+
+    // build the action signal
+    if(sellNeedsChange && buyNeedsChange) soundBoth();
+    else if(sellNeedsChange) soundSell();
+    else soundBuy();
+
+    let html='<div class="signal-card">';
+    if(sellNeedsChange){
+      const reason=sellRaise
+        ? 'Raise — sell higher &amp; stay cheapest (under '+esc(compSellMerchant||'best seller')+' at '+fP2(compSell)+')'
+        : (targetSell<compSell?'Undercut ':'Match ')+esc(compSellMerchant||'best seller')+' at '+fP2(compSell);
+      html+='<div class="action-block sell">'+
+        '<div class="ab-label"><i class="ti '+(sellRaise?'ti-arrow-up-right':'ti-arrow-down-right')+'" style="color:var(--red);"></i> Sell ad</div>'+
+        '<div class="ab-instruction sell"><span class="from">'+fP2(mySell)+'</span> → <span class="to">'+fP2(targetSell)+'</span></div>'+
+        '<div class="ab-reason">'+reason+'</div>'+
+      '</div>';
+    }
+    if(buyNeedsChange){
+      const reason=buyDrop
+        ? 'Lower — pay less &amp; stay top buyer (above '+esc(compBuyMerchant||'best buyer')+' at '+fP2(compBuy)+')'
+        : 'Beat '+esc(compBuyMerchant||'best buyer')+' at '+fP2(compBuy);
+      html+='<div class="action-block buy">'+
+        '<div class="ab-label"><i class="ti '+(buyDrop?'ti-arrow-down-right':'ti-arrow-up-right')+'" style="color:var(--green);"></i> Buy ad</div>'+
+        '<div class="ab-instruction buy"><span class="from">'+fP2(myBuy)+'</span> → <span class="to">'+fP2(targetBuy)+'</span></div>'+
+        '<div class="ab-reason">'+reason+'</div>'+
+      '</div>';
+    }
+    html+='<button class="confirm-btn" id="confirm-btn" onclick="confirmChange('+projSell+','+projBuy+')"><i class="ti ti-check"></i> I changed both — confirm</button>';
+    html+='</div>';
+    $('signal-area').innerHTML=html;
+    updateMarginStrip(projSell,projBuy);
+    log('Signal — sell '+(sellNeedsChange?fP2(targetSell):'ok')+', buy '+(buyNeedsChange?fP2(targetBuy):'ok'),'');
+    } finally { busy=false; }
+  }
+
+  function confirmChange(ts,tb){
+    mySell=ts; myBuy=tb;
+    refreshPricePanel();
+    log('✓ Confirmed — sell '+fP2(ts)+', buy '+fP2(tb),'ok');
+    const btn=$('confirm-btn');
+    if(btn){btn.className='confirm-btn done'; btn.innerHTML='<i class="ti ti-check"></i> Done';}
+    setTimeout(()=>{
+      $('signal-area').innerHTML='<div class="no-signal"><i class="ti ti-circle-check" style="color:var(--green);"></i>Updated. Watching for the next move...</div>';
+    },1200);
+  }
+
+  function startBot(){
+    if(timer)clearInterval(timer);
+    setStatus(true); log('Advisor started — watching OKX','ok');
+    setDataTag('','Connecting to OKX…');
+    ensureAudio();
+    refreshPricePanel();
+    tick();
+    timer=setInterval(tick,10000);
+    fetchAccount();                                   // real wallet balance now…
+    acctTimer=setInterval(fetchAccount,30000);        // …and refresh every 30s
+    seenBills=null; seenMoves=null;                   // re-baseline tracking on each Start
+    fetchOrders(); fetchMovements();
+    ordTimer=setInterval(()=>{ fetchOrders(); fetchMovements(); },30000);  // watch orders + funding moves
+  }
+  function stopBot(){
+    if(timer)clearInterval(timer); timer=null;
+    if(acctTimer)clearInterval(acctTimer); acctTimer=null;
+    if(ordTimer)clearInterval(ordTimer); ordTimer=null;
+    setStatus(false); busy=false;
+    log('Stopped','');
+  }
+
+  // Sell-mode toggle: update the label and re-evaluate immediately if running
+  function onModeChange(){
+    const hold=$('r-hold').checked;
+    $('mode-name').textContent=hold?'Hold for margin':'Undercut to sell fast';
+    log('Sell mode → '+(hold?'Hold for margin':'Undercut to sell fast'),'');
+    if(timer) tick();
+  }
+
+  // operator hotkey: Enter = confirm the open popup
+  function onKeyShortcut(e){
+    const open=id=>{ const m=$(id); return m && m.style.display==='flex'; };
+    if(e.key==='Escape'){ if(open('guide-modal')){ closeGuide(); } return; }   // Esc closes the guide
+    if(e.key!=='Enter') return;
+    if(open('guide-modal')){ e.preventDefault(); closeGuide(); }
+    else if(open('reset-modal')){ e.preventDefault(); confirmReset(); }
+    else if(open('manual-modal')){ e.preventDefault(); addManual(); }
+    // import is a textarea — keep Enter for new lines
+  }
+  document.addEventListener('keydown', onKeyShortcut);
+
+  // ---- per-panel minimize / restore ----
+  // Adds a − button to the top-right of every titled panel. Minimized panels collapse to just their
+  // title bar with a + to reopen. State is remembered per panel (by title) across reloads.
+  function setupMinimizers(){
+    let mins=[]; try{ mins=JSON.parse(localStorage.getItem('coinmate.min')||'[]'); }catch(e){}
+    document.querySelectorAll('.price-box, .card, .log').forEach(function(box){
+      const h3=box.querySelector(':scope > h3');
+      if(!h3 || h3.querySelector('.col-min')) return;             // need a title; never double-add
+      const first=h3.childNodes[0];
+      const title=(((first&&first.textContent)||h3.textContent||'Panel')).trim();
+      box.classList.add('minbox'); box.dataset.mintitle=title;
+      const btn=document.createElement('button');
+      btn.type='button'; btn.className='mini-btn col-min'; btn.innerHTML='&minus;'; btn.title='Minimize '+title;
+      btn.onclick=function(e){ e.stopPropagation(); toggleMin(box); };
+      h3.insertBefore(btn, h3.firstChild);                        // float:right puts it at the top-right corner
+      if(mins.indexOf(title)>=0) applyMin(box,true);
+    });
+  }
+  function applyMin(box,on){
+    const btn=box.querySelector('.col-min'), t=box.dataset.mintitle||'';
+    if(on){ box.classList.add('min'); if(btn){ btn.innerHTML='&plus;'; btn.title='Open '+t; } }
+    else  { box.classList.remove('min'); if(btn){ btn.innerHTML='&minus;'; btn.title='Minimize '+t; } }
+  }
+  function toggleMin(box){
+    const on=!box.classList.contains('min'); applyMin(box,on);
+    let mins=[]; try{ mins=JSON.parse(localStorage.getItem('coinmate.min')||'[]'); }catch(e){}
+    const t=box.dataset.mintitle; mins=mins.filter(function(x){return x!==t;}); if(on) mins.push(t);
+    try{ localStorage.setItem('coinmate.min', JSON.stringify(mins)); }catch(e){}
+  }
+
+  refreshPricePanel();
+  onModeChange();
+  initPhpBal();
+  loadManual();
+  loadRates();
+  loadEdited();
+  loadCaptured();
+  loadMeta();
+  loadDeleted();
+  loadPhpDelta();
+  loadFlags();
+  loadFight();
+  // Policy: OKX funding bills are confirmed transactions, so the app no longer flags them. Clear any old
+  // "verify this order" prompts left over from the previous behaviour so they don't keep popping up.
+  if(flaggedBills.size){ flaggedBills.clear(); saveFlags(); }
+  setupMinimizers();    // add a minimize/restore control to every titled panel
+  renderCapital();
+  renderToday();
+
+  // Fully automatic daily lifecycle: runs 5:00 AM → 1:00 AM, finalizes the ledger at 1:00 AM,
+  // carries the PHP balance overnight, and resumes itself at 5:00 AM. No manual start needed.
+  lifecycleTick();
+  lifecycleTimer=setInterval(lifecycleTick, 30000);
+</script>
+</body>
+</html>

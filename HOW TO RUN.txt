@@ -1,0 +1,125 @@
+COINMATE ADVISOR — HOW TO RUN (office dry run)
+================================================
+
+WHAT IT IS
+- A read-only dashboard. It shows live OKX USDT/PHP bank-transfer prices,
+  your Coinmate ad, your top 3 competitors, the official USD/PHP forex rate,
+  and tells YOU what to change. It NEVER trades or edits ads for you.
+
+
+ONE-TIME SETUP (per computer)
+-----------------------------
+1. Install Node.js (free, ~2 min):
+   - Go to:  https://nodejs.org/en/download
+   - Download the Windows "LTS" installer and run it.
+   - Click Next / Next / Install with the default options. Done.
+   (You only do this ONCE per PC. If Node is already installed, skip this.)
+
+2. Copy the whole "Coinmate Advisory" folder onto the computer
+   (Desktop is fine). Keep all the files together in one folder.
+
+
+EVERY TIME YOU WANT TO USE IT
+-----------------------------
+1. Double-click  "Start Helper.bat"
+   -> A black window opens saying "Coinmate OKX Helper is RUNNING".
+   -> Your browser opens the app automatically after a few seconds.
+   -> LEAVE THE BLACK WINDOW OPEN the whole time you use the app.
+
+   *** IMPORTANT ***
+   - Start it with "Start Helper.bat" ONLY.
+   - Do NOT double-click "okx-helper.js" (Windows shows a fake error if you do).
+   - Use the tab that opens at  http://127.0.0.1:8787/
+     Do NOT open the .html file directly (that one shows "Offline").
+
+2. That's it -- there is NO Start button anymore. The app runs by itself.
+   -> The top bar turns GREEN: "Live - OKX USDT/PHP".
+   -> Your Coinmate ad is detected automatically (no nickname to type).
+
+FULLY AUTOMATIC DAILY CYCLE
+- The app runs every trading day from 5:00 AM to 1:00 AM automatically.
+- At 1:00 AM it finalizes the day: it saves the day to the Ledger folder
+  (orders, totals, profit and your ENDING PHP balance), then goes quiet.
+- From 1:00 AM to 5:00 AM is downtime (the pill shows "Downtime - resumes 5 AM").
+- At 5:00 AM it starts the new day on its own and carries over yesterday's
+  ending PHP balance as the new starting balance (nothing trades overnight).
+- For this to run unattended, leave the helper window AND the browser tab open.
+  (A browser app can only run while its tab is open.)
+
+YOUR DAILY LEDGER (Ledger folder)
+- "Coinmate YYYY-MM-DD.xlsx" -- one proper Excel file PER DAY (named with the
+  date): every order that day, the day summary, and your ENDING PHP balance.
+- "Coinmate Daily Summary.csv" -- one row per day (orders, bought/sold,
+  averages, profit, fees, ending balance) so you can see your whole history
+  at a glance.
+- These update automatically at 1 AM. You can also click the export button
+  (or "End day now") to save the current day at any time.
+
+HANDY BUTTONS
+- "End day now" -- finish the day early; it does the same 1 AM finalize
+  (saves the ledger + ending balance) and waits until 5 AM.
+- "Guide" -- a full in-app explanation of every column, the math, and keys.
+
+WHEN YOU'RE DONE (for the day/week)
+- You can just leave it running. To stop completely, close the black helper
+  window (or press Ctrl+C in it) and close the browser tab.
+
+
+IF THE TOP BAR IS RED ("Offline")
+- The helper window is probably closed. Double-click "Start Helper.bat"
+  again, wait a few seconds, and the app reconnects on its own.
+- A brief Offline that fixes itself is normal (the data relay is busy);
+  it never shows wrong/stale numbers, it just waits and retries.
+
+
+RUNNING IT FOR THE WHOLE TEAM (read this)
+-----------------------------------------
+The app pulls OKX data through a free public relay that allows a limited
+number of requests per office internet connection. So DON'T have everyone
+run their own helper -- instead, ONE computer hosts it for the group:
+
+  HOST computer (one person):
+    1. Double-click "Start Helper.bat".
+    2. In the black window, find the line:
+           Teammates open:  http://192.168.x.x:8787/
+       (the first time, Windows asks to "Allow access" -> click Allow,
+        keep "Private networks" ticked.)
+    3. Leave that window open. Share that http://192.168.x.x:8787/ address.
+
+  EVERYONE ELSE (same office Wi-Fi):
+    - Just open that http://192.168.x.x:8787/ address in your browser
+      and press Start. You do NOT need Node.js or the files -- only the
+      host computer does.
+
+Notes:
+- Everyone must be on the SAME office network/Wi-Fi as the host.
+- If teammates can't connect, the host's Windows Firewall is likely
+  blocking it -> re-run Start Helper and click "Allow access", or allow
+  "Node.js" for Private networks in Windows Firewall.
+
+
+OPTIONAL: LIVE BALANCE & CAPITAL TRACKING (host PC only)
+--------------------------------------------------------
+The wallet balance, circulating-capital tracker, and recent-orders feed
+need an OKX API key (READ-ONLY). To enable on the host computer:
+  1. Make a READ-ONLY API key on OKX (set a Trusted IP for safety).
+  2. Copy "okx-keys.example.json" to a new file named "okx-keys.json".
+  3. Put your apiKey, secretKey, and passphrase in it. Save.
+  4. Restart "Start Helper.bat".
+okx-keys.json stays on this computer only -- never share it, and it is
+NOT part of this package. Without it, the app still works as an advisor;
+the balance/capital sections simply stay hidden.
+
+
+WHAT IT DOES / DOESN'T DO
+- It only READS prices and advises YOU. It NEVER trades or changes ads.
+- "Competition" = merchants who accept generic BANK TRANSFER, with enough
+  volume (the "Min competitor USDT" rule), excluding your own ad.
+
+
+Files in this folder:
+- coinmate_advisor_bot.html .... the app (the dashboard)
+- okx-helper.js ................ the data helper (don't edit)
+- Start Helper.bat ............ double-click this to start
+- open-app.bat ............... opens the browser (used by Start Helper)
+- HOW TO RUN.txt ............. this file

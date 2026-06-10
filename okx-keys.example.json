@@ -1,0 +1,6 @@
+{
+  "_comment": "Copy this file to okx-keys.json and fill in your real values. okx-keys.json stays on THIS computer only — it is never served to the browser and never included in the team zip. Use a Read-only API key, and set a Trusted IP on OKX.",
+  "apiKey": "your-okx-api-key",
+  "secretKey": "your-okx-secret-key",
+  "passphrase": "your-okx-api-passphrase"
+}

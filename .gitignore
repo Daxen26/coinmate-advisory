@@ -1,0 +1,11 @@
+# ── SECRETS — NEVER COMMIT ──────────────────────────────
+okx-keys.json
+
+# local data & generated files
+Ledger/
+.claude/settings.local.json
+node_modules/
+.wrangler/
+*.zip
+.DS_Store
+Thumbs.db
