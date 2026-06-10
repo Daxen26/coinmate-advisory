@@ -9,3 +9,6 @@ node_modules/
 *.zip
 .DS_Store
 Thumbs.db
+
+# cloud deploy: public/ is generated from the app at deploy time (one source of truth)
+cloud/public/

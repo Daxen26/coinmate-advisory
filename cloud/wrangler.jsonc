@@ -1,0 +1,19 @@
+{
+  // Coinmate cloud deployment. Deploy with:  npx wrangler deploy   (run inside this "cloud" folder)
+  "name": "coinmate",
+  "main": "worker.js",
+  "compatibility_date": "2024-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // serves the app (public/index.html) on the same origin as the data pipe — no CORS issues
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  // the daily ledger lives here (created in your Cloudflare account)
+  "kv_namespaces": [
+    { "binding": "LEDGER", "id": "19829c1f11b743e38e881122d284fda1" }
+  ],
+
+  // After the first deploy, set this to your live URL so the data pipe only answers your own site.
+  // e.g. "https://coinmate.<your-subdomain>.workers.dev"  — then run: npx wrangler deploy
+  "vars": { "SITE_ORIGIN": "" }
+}
