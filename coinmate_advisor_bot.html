@@ -80,6 +80,9 @@
   .mlog-tag{font-size:9.5px; font-weight:700; padding:3px 8px; border-radius:5px; text-align:center; letter-spacing:.02em;}
   .mlog-tag.buy{color:var(--green); background:var(--green-dim);}
   .mlog-tag.sell{color:var(--red); background:var(--red-dim);}
+  .mlog-tag.exp{color:var(--amber); background:var(--amber-dim);}
+  .pf-net{cursor:pointer;}
+  .pf-aud{font-size:10px; color:var(--amber); font-weight:600; vertical-align:middle;}
   .mlog-amt{font-size:12px; font-weight:600; font-variant-numeric:tabular-nums;}
   .mlog-sub{font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
   .mlog-name{color:var(--text); font-weight:500;}
@@ -505,7 +508,7 @@
     </div>
 
     <div class="card today-card">
-      <h3>Daily Ledger <button class="mini-btn" onclick="exportLedger()" title="Save today's orders to the Ledger folder (Excel/CSV)">⤓ export</button><button class="mini-btn" onclick="openManual()" title="Add a manual (off-P2P) Credit or Debit">+ manual</button> <span class="merchant">since start of day</span></h3>
+      <h3>Daily Ledger <button class="mini-btn" onclick="exportLedger()" title="Save today's orders to the Ledger folder (Excel/CSV)">⤓ export</button><button class="mini-btn" onclick="openManual()" title="Add a manual (off-P2P) Credit or Debit">+ manual</button><button class="mini-btn" onclick="openExpense()" title="Log a business expense (PHP out) — lowers your profit">+ expense</button> <span class="merchant">since start of day</span></h3>
       <div id="today-body"><div class="comp-empty">Loading…</div></div>
     </div>
 
@@ -530,6 +533,31 @@
     <button class="flag-del" onclick="flagDelete()">Delete</button>
     <button class="flag-legit" onclick="flagLegit()">Legit</button>
     <button class="flag-later" onclick="flagSnooze()">Later</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="endday-modal" style="display:none;" onclick="if(event.target===this)closeEndDay()">
+  <div class="modal">
+    <h3>End the trading day <span class="merchant">final audit before 5 AM</span></h3>
+    <p class="mt-note">This locks today into the Ledger and stops until 5 AM. Enter your <b>audited</b> numbers so the next day starts trusted.</p>
+    <div class="mt-field">
+      <label>Final profit today (₱) <span id="ed-computed" class="pc-rate"></span></label>
+      <input id="ed-profit" type="text" inputmode="decimal" placeholder="your audited profit" autocomplete="off">
+    </div>
+    <div class="mt-field">
+      <label>PDAX cash now (₱)</label>
+      <input id="ed-cash" type="text" inputmode="decimal" placeholder="exact cash" autocomplete="off" oninput="formatPhpLive(this)">
+    </div>
+    <div class="mt-field">
+      <label>Profit password <span class="merchant">required to record the profit</span></label>
+      <input id="ed-pw" type="password" placeholder="••••••" autocomplete="off">
+    </div>
+    <div class="mt-total" id="ed-status"></div>
+    <div class="key-hint"><kbd>Enter</kbd> to confirm · <kbd>Esc</kbd> to cancel</div>
+    <div class="mt-actions">
+      <button class="btn-cancel" onclick="closeEndDay()">Cancel</button>
+      <button class="btn-add" onclick="confirmEndDay()">End day &amp; save</button>
+    </div>
   </div>
 </div>
 
@@ -567,17 +595,18 @@
     <h3>Manual transaction <span class="merchant">off-P2P / direct</span></h3>
     <div class="mt-field">
       <label>Type</label>
-      <select id="mt-side" onchange="renderMtTotal()">
+      <select id="mt-side" onchange="onMtTypeChange()">
         <option value="sell">Debit — client pays you, you send USDT (PHP in, no fee)</option>
         <option value="buy">Credit — you bought USDT (e.g. other exchange) via InstaPay (PHP out + fee)</option>
+        <option value="expense">Expense — a business cost (PHP out, lowers profit)</option>
       </select>
     </div>
-    <div class="mt-field">
+    <div class="mt-field" id="mt-usdt-field">
       <label>USDT amount</label>
       <input id="mt-usdt" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal" oninput="renderMtTotal()">
     </div>
     <div class="mt-field">
-      <label>Price (₱ per USDT)</label>
+      <label id="mt-price-label">Price (₱ per USDT)</label>
       <input id="mt-price" type="number" step="0.01" min="0" placeholder="0" inputmode="decimal" oninput="renderMtTotal()">
     </div>
     <div class="mt-field">
@@ -630,8 +659,8 @@
       <div class="g-sec"><h4><i class="ti ti-receipt"></i> Recent orders · Daily Ledger · Profit</h4>
         <ul>
           <li><b>Recent orders</b> — every order today with its <b>exact rate, peso total, counterparty &amp; payment method</b>, straight from OKX. <b>Click a rate</b> to correct it manually (enter <b>0</b> to revert to OKX). <b>✕</b> removes an order from all the math.</li>
-          <li><b>Daily Ledger</b> — USDT bought, sold, net position, order count and estimated fees. Add off-P2P entries with <b>+ manual</b> (<b>Credit</b> = you bought USDT / paid out; <b>Debit</b> = a client paid you). Each manual entry is listed below with <b>✎ edit</b> and <b>✕ delete</b> so you can fix a mistake and redo it.</li>
-          <li><b>Profit</b> — your <b>net profit for the day</b> (see the math below). Updates live.</li>
+          <li><b>Daily Ledger</b> — USDT bought, sold, net position, order count and estimated fees. <b>+ manual</b> logs an off-P2P entry (<b>Credit</b> = you bought USDT / paid out; <b>Debit</b> = a client paid you, with an optional name/note). <b>+ expense</b> logs a business cost (PHP out) that <b>lowers your profit</b>. Every manual entry is listed below with <b>✎ edit</b> and <b>✕ delete</b> so you can fix a mistake and redo it.</li>
+          <li><b>Profit</b> — your <b>net profit for the day</b> (sells spread − InstaPay − expenses). <b>Click the profit number</b> to set an <b>audited</b> figure — that needs the <b>profit password</b>.</li>
           <li><b>Circulating capital</b> — PHP cash + the peso value of your USDT.</li>
         </ul>
       </div>
@@ -641,7 +670,8 @@
           <li><b>Rate &amp; peso</b> = the exact <code>unitPrice</code> and <code>fiatAmount</code> from each OKX order. No estimates.</li>
           <li><b>Buy avg / Sell avg</b> = total pesos ÷ total USDT (weighted), for today only.</li>
           <li><b>InstaPay fee</b> = ₱15 for every ₱50,000 bracket, on <b>buys only</b>.</li>
-          <li><b>Profit (today)</b> = <code>sold USDT × (Sell avg − Buy avg)</code> − <b>all of today’s InstaPay fees</b>. Already net of fees.</li>
+          <li><b>Profit (today)</b> = <code>sold USDT × (Sell avg − Buy avg)</code> − <b>InstaPay fees</b> − <b>expenses</b>. (An <b>audited</b> profit, if set, replaces this.)</li>
+          <li><b>End day now</b> opens an audit popup: enter your <b>final profit</b> + <b>PDAX cash</b> (both protected by the profit password) to lock the day and carry the cash to 5 AM.</li>
           <li><b>Wallet avg</b> = live weighted-average price of the USDT you bought.</li>
           <li><b>Cash</b> moves with each new order during the day; it’s your confirmed PDAX cash as the source of truth.</li>
         </ul>
@@ -654,7 +684,7 @@
           <li><b>⟲ start of day</b> — manual reset: clears recent/today/profit and asks for your exact cash.</li>
           <li><b>↻ now</b> — pull balance &amp; orders immediately.</li>
           <li><b>⤓ export</b> — save today into the Ledger folder right now.</li>
-          <li><b>+ manual</b> — log an off-P2P entry: <b>Credit</b> (you bought USDT / paid out) or <b>Debit</b> (a client paid you). On Daily Ledger &amp; Profit.</li>
+          <li><b>+ manual</b> — log an off-P2P entry: <b>Credit</b> (you bought USDT / paid out) or <b>Debit</b> (a client paid you). <b>+ expense</b> — a business cost that lowers profit.</li>
           <li><b>End day now</b> — finish the day early. <b>−</b> on any panel collapses it; <b>+</b> reopens.</li>
         </ul>
       </div>
@@ -728,6 +758,8 @@
   let lastOrders=[];                     // most recent completed order fills (for the feed)
   let manualTx=[];                       // off-P2P direct Credits/Debits you log manually
   let editingManualTs=null;              // ts of the manual entry currently being edited (null = adding new)
+  const PROFIT_PASSWORD='357357357';     // staff gate for editing the profit column (soft, client-side)
+  let profitOverride=null;               // {day, value} — an audited profit that overrides the computed one
   let rateByBill={};                     // MANUAL rate override (₱) per order billId — only set when you edit
   let editedBills=new Set();             // orders whose rate you hand-corrected (override wins over OKX)
   let prevAvail={sell:null, buy:null};   // last seen ad available — to detect order-opens (quantity drops)
@@ -962,33 +994,52 @@
     }).join('');
     renderToday();
   }
-  // Daily summary from today's order fills — rate & ₱ are EXACT from OKX (or your manual override).
-  // Running profit (today) = money made on completed sells − ALL InstaPay fees on today's buys.
-  // InstaPay is auto-deducted (every buy adds a cost), so the displayed number is already net.
-  function renderProfit(){
-    const el=$('profit-body'); if(!el) return;
-    const m=dayStart();
-    let soldQty=0, sellRev=0, boughtQty=0, boughtCost=0, fees=0;
+  // ---- one shared profit calculator (used by the Profit card, the End Day audit, and the ledger) ----
+  // Profit = money made on completed sells (sold × (sell avg − buy avg)) − all InstaPay fees − expenses.
+  function dayProfitNumbers(from, to){
+    to = to || Infinity;
+    let soldQty=0, sellRev=0, boughtQty=0, boughtCost=0, fees=0, expenses=0;
     for(const o of lastOrders){
-      if(o.ts<m || deletedBills.has(o.billId)) continue;
+      if(o.ts<from || o.ts>to || deletedBills.has(o.billId)) continue;
       const usdt=Math.abs(o.usdt);
-      if(o.usdt<0){ soldQty+=usdt; sellRev+=phpOf(o); }                       // exact peso received
-      else { boughtQty+=usdt; boughtCost+=phpOf(o); fees+=instapayFee(phpOf(o)); }  // exact peso paid + InstaPay
+      if(o.usdt<0){ soldQty+=usdt; sellRev+=phpOf(o); }
+      else { boughtQty+=usdt; boughtCost+=phpOf(o); fees+=instapayFee(phpOf(o)); }
     }
     for(const t of manualTx){
-      if(t.ts<m) continue;
-      if(t.side==='sell'){ soldQty+=t.usdt; sellRev+=t.usdt*t.price; }
+      if(t.ts<from || t.ts>to) continue;
+      if(t.side==='expense'){ expenses+=t.php; }                       // business cost — lowers profit
+      else if(t.side==='sell'){ soldQty+=t.usdt; sellRev+=t.usdt*t.price; }
       else { boughtQty+=t.usdt; boughtCost+=t.usdt*t.price; fees+=(t.fee||0); }
     }
-    if(!soldQty && !boughtQty){ el.innerHTML='<div class="comp-empty">No trades yet today.</div>'; return; }
-    // cost basis for today's sells = today's average buy price (falls back to live inventory avg
-    // if you only sold prior-day inventory today). Keeps the spread consistent within the day.
     const avgBuy=boughtQty>0?boughtCost/boughtQty:liveAvg(), avgSell=soldQty>0?sellRev/soldQty:0;
-    const gross=soldQty>0?soldQty*(avgSell-avgBuy):0;   // money made on sells (spread)
-    const net=gross-fees;                                // InstaPay auto-deducted
+    const gross=soldQty>0?soldQty*(avgSell-avgBuy):0;
+    return { soldQty, boughtQty, fees, expenses, avgBuy, avgSell, gross, computed: gross-fees-expenses };
+  }
+  function loadProfitOverride(){ try{ profitOverride=JSON.parse(localStorage.getItem('coinmate.profitOverride')||'null'); }catch(e){ profitOverride=null; } }
+  function saveProfitOverride(){ try{ localStorage.setItem('coinmate.profitOverride', JSON.stringify(profitOverride)); }catch(e){} }
+  function setProfitOverride(v){ profitOverride={ day:anchor5am(Date.now()), value:v }; saveProfitOverride(); }
+  function clearProfitOverride(){ profitOverride=null; saveProfitOverride(); }
+  function profitOverrideToday(){ return (profitOverride && profitOverride.day===anchor5am(Date.now())) ? profitOverride.value : null; }
+  // password gate — required to set/clear an audited profit on the Profit column
+  function profitPassOk(){ const p=prompt('Profit password (required to edit the profit column):'); if(p==null) return false; if(p!==PROFIT_PASSWORD){ alert('Wrong password — profit unchanged.'); return false; } return true; }
+  function editProfit(){
+    if(!profitPassOk()) return;
+    const cur=profitOverrideToday();
+    const v=prompt('Audited profit for today (₱).\nEnter a number, or leave blank to go back to the computed profit:', cur!=null?String(cur):'');
+    if(v==null) return;
+    const s=String(v).replace(/[^0-9.\-]/g,'');
+    if(s===''){ clearProfitOverride(); renderToday(); log('Profit override cleared — using the computed profit','ok'); return; }
+    const n=parseFloat(s); if(isNaN(n)) return;
+    setProfitOverride(n); renderToday(); log('Profit set to audited '+fPeso0(n)+' (password verified)','ok');
+  }
+  function renderProfit(){
+    const el=$('profit-body'); if(!el) return;
+    const n=dayProfitNumbers(dayStart());
+    if(!n.soldQty && !n.boughtQty && !n.expenses){ el.innerHTML='<div class="comp-empty">No trades yet today.</div>'; return; }
+    const ov=profitOverrideToday(), net=(ov!=null)?ov:n.computed;
     el.innerHTML=
-      '<div class="pf-net '+(net>=0?'pos':'neg')+'">'+(net>=0?'+':'−')+fPeso0(Math.abs(net))+'</div>'+
-      '<div class="pf-row"><span>'+(soldQty>0?('Sold '+fK(soldQty)+' @ ₱'+avgSell.toFixed(2)):'No sells yet — InstaPay only')+'</span><span class="'+(gross>0?'pos':'')+'">'+(soldQty>0?('+'+fPeso0(gross)):'')+'</span></div>';
+      '<div class="pf-net '+(net>=0?'pos':'neg')+'" onclick="editProfit()" title="Click to set an audited profit (needs the password)">'+(net>=0?'+':'−')+fPeso0(Math.abs(net))+(ov!=null?' <span class="pf-aud">✎ audited</span>':'')+'</div>'+
+      '<div class="pf-row"><span>'+(n.soldQty>0?('Sold '+fK(n.soldQty)+' @ ₱'+n.avgSell.toFixed(2)):'No sells yet')+(n.expenses>0?(' · −'+fPeso0(n.expenses)+' exp'):'')+'</span><span class="'+(n.gross>0?'pos':'')+'">'+(n.soldQty>0?('+'+fPeso0(n.gross)):'')+'</span></div>';
   }
   function renderToday(){
     renderProfit();
@@ -1011,12 +1062,14 @@
     if(todayManual.length){
       mlog='<div class="mlog"><div class="mlog-head">Manual entries</div>'+
         todayManual.slice().sort((a,b)=>b.ts-a.ts).map(t=>{
-          const isCredit=t.side==='buy', tm=new Date(t.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-          const tot=isCredit?(t.php+(t.fee||0)):t.php;
+          const isExp=t.side==='expense', isCredit=t.side==='buy', tm=new Date(t.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+          const tot=isExp?t.php:(isCredit?(t.php+(t.fee||0)):t.php), sign=(isExp||isCredit)?'−':'+';
+          const amtLine=isExp ? (t.name?('<span class="mlog-name">'+esc(t.name)+'</span>'):'Business expense')
+                              : (fQty(t.usdt)+' @ ₱'+Number(t.price).toFixed(2)+(t.name?(' · <span class="mlog-name">'+esc(t.name)+'</span>'):''));
           return '<div class="mlog-row">'+
-            '<span class="mlog-tag '+(isCredit?'buy':'sell')+'">'+mtLabel(t.side)+'</span>'+
-            '<div class="mlog-mid"><div class="mlog-amt">'+fQty(t.usdt)+' @ ₱'+Number(t.price).toFixed(2)+(t.name?(' · <span class="mlog-name">'+esc(t.name)+'</span>'):'')+'</div>'+
-            '<div class="mlog-sub">'+(isCredit?'−':'+')+fPeso0(tot)+' · '+tm+'</div></div>'+
+            '<span class="mlog-tag '+(isCredit?'buy':(isExp?'exp':'sell'))+'">'+mtLabel(t.side)+'</span>'+
+            '<div class="mlog-mid"><div class="mlog-amt">'+amtLine+'</div>'+
+            '<div class="mlog-sub">'+sign+fPeso0(tot)+' · '+tm+'</div></div>'+
             '<button class="mlog-edit" onclick="editManual('+t.ts+')" title="Edit this entry">✎</button>'+
             '<button class="ord-del" onclick="deleteManual('+t.ts+')" title="Delete this entry (recalculates)">✕</button>'+
           '</div>';
@@ -1264,24 +1317,25 @@
         total:phpOf(o).toFixed(2), counterparty:o.counterparty||(metaByBill[o.billId]||{}).name||'', payMethod:o.payMethod||'', orderId:o.orderId||o.billId});
     });
     manualTx.filter(t=>t.ts>=A && t.ts<=end).sort((a,b)=>a.ts-b.ts).forEach(t=>{
-      rows.push({ts:t.ts, date:dt(t.ts), time:tm(t.ts), type:'Manual '+mtLabel(t.side), usdt:t.usdt.toFixed(2),
-        rate:t.price.toFixed(2), total:(t.usdt*t.price).toFixed(2), counterparty:t.name||'(manual)', payMethod:'', orderId:'M'+t.ts});
+      const isExp=t.side==='expense';
+      rows.push({ts:t.ts, date:dt(t.ts), time:tm(t.ts), type:'Manual '+mtLabel(t.side), usdt:isExp?'':t.usdt.toFixed(2),
+        rate:isExp?'':t.price.toFixed(2), total:t.php.toFixed(2), counterparty:t.name||'(manual)', payMethod:'', orderId:'M'+t.ts});
     });
     return rows;
   }
   // the day's Today + Profit numbers + the ENDING PHP balance, for one ledger summary row
   function daySummary(A){
     const end=A+20*3600*1000, dt=ts=>new Date(ts).toLocaleDateString('en-CA');
-    let soldQty=0,sellRev=0,boughtQty=0,boughtCost=0,fees=0,count=0;
-    lastOrders.forEach(o=>{ if(o.ts<A||o.ts>end||deletedBills.has(o.billId))return; count++; const u=Math.abs(o.usdt);
-      if(o.usdt<0){ soldQty+=u; sellRev+=phpOf(o); } else { boughtQty+=u; boughtCost+=phpOf(o); fees+=instapayFee(phpOf(o)); } });
-    manualTx.forEach(t=>{ if(t.ts<A||t.ts>end)return; count++;
-      if(t.side==='sell'){ soldQty+=t.usdt; sellRev+=t.usdt*t.price; } else { boughtQty+=t.usdt; boughtCost+=t.usdt*t.price; fees+=(t.fee||0); } });
-    const buyAvg=boughtQty>0?boughtCost/boughtQty:0, sellAvg=soldQty>0?sellRev/soldQty:0;
-    const gross=soldQty>0?soldQty*(sellAvg-(boughtQty>0?buyAvg:liveAvg())):0, net=gross-fees;
-    return {date:dt(A), orders:count, boughtUsdt:boughtQty.toFixed(2), soldUsdt:soldQty.toFixed(2),
-      buyAvg:buyAvg?buyAvg.toFixed(4):'', sellAvg:sellAvg?sellAvg.toFixed(4):'',
-      grossProfit:gross.toFixed(2), fees:fees.toFixed(2), netProfit:net.toFixed(2), endingPhp:Math.round(readPhp())};
+    const n=dayProfitNumbers(A, end);
+    let count=0;
+    lastOrders.forEach(o=>{ if(o.ts>=A&&o.ts<=end&&!deletedBills.has(o.billId)) count++; });
+    manualTx.forEach(t=>{ if(t.ts>=A&&t.ts<=end) count++; });
+    const ov=(profitOverride && profitOverride.day===A)?profitOverride.value:null;  // audited profit, if set
+    const net=(ov!=null)?ov:n.computed;
+    return {date:dt(A), orders:count, boughtUsdt:n.boughtQty.toFixed(2), soldUsdt:n.soldQty.toFixed(2),
+      buyAvg:n.boughtQty>0?n.avgBuy.toFixed(4):'', sellAvg:n.soldQty>0?n.avgSell.toFixed(4):'',
+      grossProfit:n.gross.toFixed(2), fees:n.fees.toFixed(2), expenses:n.expenses.toFixed(2),
+      netProfit:net.toFixed(2), audited:(ov!=null), endingPhp:Math.round(readPhp())};
   }
   async function writeLedgerDay(A){
     const payload={date:new Date(A).toLocaleDateString('en-CA'), transactions:dayTransactions(A), summary:daySummary(A)};
@@ -1300,12 +1354,30 @@
     }
     const eb=$('endday-btn'); if(eb) eb.style.display=(phase==='active')?'':'none';   // only offer "End day" while running
   }
-  // Finish the day early (before 1 AM): do exactly what the 1 AM auto-finalize does.
-  function closeDayEarly(){
+  // "End day now" → the audit popup (final profit + PDAX cash + password) before locking the day.
+  function closeDayEarly(){ openEndDay(); }
+  function openEndDay(){
     const A=anchor5am(Date.now());
     if(lsNum('coinmate.finalizedDay')===A){ log('Day already closed — resumes automatically at 5:00 AM',''); return; }
-    if(!confirm('End the trading day now?\n\nThis saves today to the Ledger folder (orders, profit & your ending PHP balance) and then waits until 5:00 AM. Use this when you’ve stopped trading early.')) return;
-    endOfDay(A);
+    const comp=dayProfitNumbers(dayStart()).computed;
+    $('ed-computed').textContent='· app computed '+fPeso0(comp);
+    $('ed-profit').value=''; $('ed-pw').value=''; $('ed-status').textContent='';
+    $('ed-cash').value = readPhp()>0 ? Math.round(readPhp()).toLocaleString() : '';
+    $('endday-modal').style.display='flex'; $('ed-profit').focus();
+  }
+  function closeEndDay(){ $('endday-modal').style.display='none'; }
+  function confirmEndDay(){
+    const profit=parseFloat(String($('ed-profit').value).replace(/[^0-9.\-]/g,''));
+    const cash=parseFloat(String($('ed-cash').value).replace(/[^0-9.\-]/g,''));
+    const pw=$('ed-pw').value;
+    if(isNaN(profit)){ $('ed-status').textContent='Enter the final (audited) profit'; $('ed-profit').focus(); return; }
+    if(isNaN(cash) || cash<0){ $('ed-status').textContent='Enter your exact PDAX cash'; $('ed-cash').focus(); return; }
+    if(pw!==PROFIT_PASSWORD){ $('ed-status').textContent='Wrong profit password'; $('ed-pw').focus(); return; }
+    const A=anchor5am(Date.now());
+    setProfitOverride(profit);           // audited final profit (password verified) → recorded as the day's profit
+    writePhp(cash);                      // trusted ending cash → carries to the 5 AM start
+    closeEndDay();
+    endOfDay(A);                         // write the ledger (uses the audited profit + cash), stop, downtime
     setAutoPill('closed');
   }
   async function startOfDay(A){
@@ -1411,9 +1483,17 @@
   // ---- manual (off-P2P) transactions ----
   function loadManual(){ try{ const a=JSON.parse(localStorage.getItem('coinmate.manualTx')||'[]'); manualTx=Array.isArray(a)?a:[]; }catch(e){ manualTx=[]; } }
   function saveManual(){ try{ localStorage.setItem('coinmate.manualTx', JSON.stringify(manualTx.slice(-500))); }catch(e){} }
+  function mtLabel(side){ return side==='buy'?'Credit':(side==='expense'?'Expense':'Debit'); }  // buy=Credit · sell=Debit · expense=Expense
+  function onMtTypeChange(){
+    const exp=$('mt-side').value==='expense';
+    $('mt-usdt-field').style.display = exp?'none':'';                 // expense is PHP-only (no USDT)
+    $('mt-price-label').textContent = exp?'Amount (₱)':'Price (₱ per USDT)';
+    renderMtTotal();
+  }
   function renderMtTotal(){
-    const u=parseFloat($('mt-usdt').value)||0, p=parseFloat($('mt-price').value)||0;
-    const side=$('mt-side').value, php=u*p;
+    const side=$('mt-side').value, p=parseFloat($('mt-price').value)||0;
+    if(side==='expense'){ $('mt-total').innerHTML='− '+fPeso0(p)+' <span class="mt-fee">business cost · lowers profit</span>'; return; }
+    const u=parseFloat($('mt-usdt').value)||0, php=u*p;
     if(side==='buy'){
       const fee=instapayFee(php);
       $('mt-total').innerHTML='− '+fPeso0(php+fee)+' <span class="mt-fee">'+fPeso0(php)+' cost + '+fPeso0(fee)+' InstaPay</span>';
@@ -1421,7 +1501,6 @@
       $('mt-total').innerHTML='+ '+fPeso0(php)+' <span class="mt-fee">to PHP · no fee</span>';
     }
   }
-  function mtLabel(side){ return side==='buy'?'Credit':'Debit'; }   // buy = Credit · sell = Debit
   function setManualMode(editing, side){
     const btn=document.querySelector('#manual-modal .btn-add');
     const h=$('manual-modal').querySelector('h3');
@@ -1432,41 +1511,53 @@
     editingManualTs=null; setManualMode(false);
     $('mt-side').value='sell'; $('mt-usdt').value=''; $('mt-name').value='';
     $('mt-price').value = okxMid ? okxMid.toFixed(2) : '';   // prefill with live market price
-    renderMtTotal();
+    onMtTypeChange();
     $('manual-modal').style.display='flex';
     $('mt-usdt').focus();
   }
+  function openExpense(){
+    editingManualTs=null; setManualMode(false);
+    $('mt-side').value='expense'; $('mt-usdt').value=''; $('mt-price').value=''; $('mt-name').value='';
+    const h=$('manual-modal').querySelector('h3'); if(h) h.innerHTML='Business expense <span class="merchant">PHP out · lowers profit</span>';
+    onMtTypeChange();
+    $('manual-modal').style.display='flex';
+    $('mt-price').focus();
+  }
   function closeManual(){ editingManualTs=null; $('manual-modal').style.display='none'; }
-  // reverse a manual entry's effect on the running PHP cash (used by edit & delete)
+  // reverse / apply a manual entry's effect on the running PHP cash (Debit=in · Credit & Expense=out)
   function reverseManual(t){ if(t.side==='sell'){ writePhp(readPhp()-t.php); } else { writePhp(readPhp()+(t.php+(t.fee||0))); } }
   function applyManual(t){ if(t.side==='sell'){ writePhp(readPhp()+t.php); } else { writePhp(readPhp()-(t.php+(t.fee||0))); } }
   function addManual(){
-    const side=$('mt-side').value;
-    const usdt=parseFloat($('mt-usdt').value)||0;
-    const price=parseFloat($('mt-price').value)||0;
-    if(usdt<=0 || price<=0){ $('mt-total').textContent='Enter a USDT amount and price'; return; }
+    const side=$('mt-side').value, exp=(side==='expense');
+    const field=parseFloat($('mt-price').value)||0;          // expense → PHP amount · else → price per USDT
+    const usdt=exp?0:(parseFloat($('mt-usdt').value)||0);
+    if(exp){ if(field<=0){ $('mt-total').textContent='Enter the expense amount'; return; } }
+    else if(usdt<=0 || field<=0){ $('mt-total').textContent='Enter a USDT amount and price'; return; }
     let ts=Date.now(), editing=false;
     if(editingManualTs!=null){                               // editing → remove the old entry first, keep its time slot
       const i=manualTx.findIndex(t=>t.ts===editingManualTs);
       if(i>=0){ reverseManual(manualTx[i]); ts=manualTx[i].ts; manualTx.splice(i,1); editing=true; }
       editingManualTs=null;
     }
-    const php=usdt*price;
+    const php=exp?field:(usdt*field), price=exp?0:field;
     const fee=(side==='buy')?instapayFee(php):0;              // InstaPay applies when YOU pay out (Credit/buy)
     const name=($('mt-name').value||'').trim();
     const entry={ts, side, usdt, price, php, fee, name};
     manualTx.push(entry); saveManual();
     applyManual(entry);
     renderCapital(); renderToday(); showWallet();
-    log('Manual '+mtLabel(side).toUpperCase()+(editing?' edited':'')+' '+usdt.toFixed(2)+' USDT @ '+fP2(price)+' = '+fPeso0(php)+(fee?(' + '+fPeso0(fee)+' InstaPay'):'')+' · PHP now '+fPeso0(readPhp()),'ok');
+    const desc = exp ? ('Expense '+fPeso0(php)+(name?(' · '+name):'')) : (mtLabel(side).toUpperCase()+' '+usdt.toFixed(2)+' USDT @ '+fP2(field)+' = '+fPeso0(php)+(fee?(' + '+fPeso0(fee)+' InstaPay'):''));
+    log('Manual '+desc+(editing?' (edited)':'')+' · PHP now '+fPeso0(readPhp()),'ok');
     closeManual();
   }
   function editManual(ts){
     const t=manualTx.find(x=>x.ts===ts); if(!t) return;
     editingManualTs=ts; setManualMode(true, t.side);
-    $('mt-side').value=t.side; $('mt-usdt').value=t.usdt; $('mt-price').value=t.price; $('mt-name').value=t.name||'';
-    renderMtTotal();
-    $('manual-modal').style.display='flex'; $('mt-usdt').focus();
+    $('mt-side').value=t.side; $('mt-name').value=t.name||'';
+    if(t.side==='expense'){ $('mt-price').value=t.php; $('mt-usdt').value=''; }
+    else { $('mt-usdt').value=t.usdt; $('mt-price').value=t.price; }
+    onMtTypeChange();
+    $('manual-modal').style.display='flex'; (t.side==='expense'?$('mt-price'):$('mt-usdt')).focus();
   }
   function deleteManual(ts){
     const i=manualTx.findIndex(t=>t.ts===ts); if(i<0) return;
@@ -1822,9 +1913,10 @@
   // operator hotkey: Enter = confirm the open popup
   function onKeyShortcut(e){
     const open=id=>{ const m=$(id); return m && m.style.display==='flex'; };
-    if(e.key==='Escape'){ if(open('guide-modal')){ closeGuide(); } return; }   // Esc closes the guide
+    if(e.key==='Escape'){ if(open('guide-modal')){ closeGuide(); } else if(open('endday-modal')){ closeEndDay(); } return; }
     if(e.key!=='Enter') return;
     if(open('guide-modal')){ e.preventDefault(); closeGuide(); }
+    else if(open('endday-modal')){ e.preventDefault(); confirmEndDay(); }
     else if(open('reset-modal')){ e.preventDefault(); confirmReset(); }
     else if(open('manual-modal')){ e.preventDefault(); addManual(); }
     // import is a textarea — keep Enter for new lines
@@ -1873,6 +1965,7 @@
   loadPhpDelta();
   loadFlags();
   loadFight();
+  loadProfitOverride();
   // Policy: OKX funding bills are confirmed transactions, so the app no longer flags them. Clear any old
   // "verify this order" prompts left over from the previous behaviour so they don't keep popping up.
   if(flaggedBills.size){ flaggedBills.clear(); saveFlags(); }
